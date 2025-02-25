@@ -1,0 +1,15 @@
+process_algebra_viz/
+│
+├── main.py                  # Main application entry point
+├── README.md                # Project documentation
+│
+├── models/
+│   ├── __init__.py          # Package initialization
+│   ├── parser.py            # Process algebra parser
+│   └── layout.py            # Force-directed layout algorithm
+│
+└── ui/
+    ├── __init__.py          # Package initialization
+    ├── editor_window.py     # Text editor window
+    ├── petri_net_window.py  # Petri net visualization window
+    └── settings_window.py   # Layout settings window
