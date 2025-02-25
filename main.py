@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import QApplication
 from ui.editor_window import TextEditorWindow
 from ui.petri_net_window import PetriNetWindow
 from ui.settings_window import LayoutSettingsWindow
+from models.file_manager import FileManager
 
 def main():
     # Create the application
