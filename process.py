@@ -8,8 +8,7 @@ from PyQt5.QtCore import Qt, QPointF, QRectF
 from PyQt5.QtGui import QPen, QBrush, QColor, QFont
 
 class ProcessAlgebraParser:
-    """Parser for simple process algebra expressions and conversion to Petri nets"""
-    
+    """Parser for simple process algebra expressions and conversion to Petri nets"""   
     def __init__(self):
         self.places = []
         self.transitions = []
@@ -61,7 +60,144 @@ class ProcessAlgebraParser:
         except Exception as e:
             print(f"Parsing error: {str(e)}")
             return False
-    
+    def export_to_process_algebra(self):
+        """Export the current Petri net back to process algebra code"""
+        if not self.places or not self.transitions or not self.arcs:
+            return ""
+        
+        # Reconstruct process definitions from the Petri net
+        process_code = {}
+        
+        # First, identify all process places (places with tokens)
+        process_places = {}
+        for place in self.places:
+            if place.get('is_process', False) or place.get('tokens', 0) > 0:
+                process_places[place['id']] = place['name']
+        
+        # For each process place, reconstruct its definition
+        for place_id, process_name in process_places.items():
+            # Get all outgoing arcs from this place
+            outgoing_arcs = [arc for arc in self.arcs if arc['source_id'] == place_id and arc['is_place_to_transition']]
+            
+            # If no outgoing arcs, this is a terminal process
+            if not outgoing_arcs:
+                process_code[process_name] = "STOP"
+                continue
+            
+            # Collect all branches from this process
+            branches = []
+            
+            for arc in outgoing_arcs:
+                transition_id = arc['target_id']
+                
+                # Find the transition
+                transition = next((t for t in self.transitions if t['id'] == transition_id), None)
+                if not transition:
+                    continue
+                
+                # Get the action name
+                action = transition['name']
+                
+                # Find where this transition leads to
+                next_arcs = [arc for arc in self.arcs if arc['source_id'] == transition_id and not arc['is_place_to_transition']]
+                
+                if not next_arcs:
+                    # Transition leads nowhere, treat as STOP
+                    branches.append(f"{action}.STOP")
+                else:
+                    for next_arc in next_arcs:
+                        target_place_id = next_arc['target_id']
+                        target_place = next((p for p in self.places if p['id'] == target_place_id), None)
+                        
+                        if not target_place:
+                            continue
+                        
+                        if target_place_id in process_places:
+                            # This is a recursive reference to another process
+                            branches.append(f"{action}.{process_places[target_place_id]}")
+                        else:
+                            # This is a continuation to another action sequence
+                            # Find the next action from this place
+                            continuation = self._get_continuation_from_place(target_place_id)
+                            if continuation:
+                                branches.append(f"{action}.{continuation}")
+                            else:
+                                branches.append(f"{action}.STOP")
+            
+            # Join all branches with choice operator
+            if branches:
+                process_code[process_name] = " + ".join(branches)
+        
+        # Combine all process definitions
+        result = []
+        for name, expr in process_code.items():
+            result.append(f"{name} = {expr}")
+        
+        return "\n".join(result)
+
+    def _get_continuation_from_place(self, place_id, visited=None):
+        """Recursively get the continuation sequence from a place"""
+        if visited is None:
+            visited = set()
+        
+        if place_id in visited:
+            return "STOP"  # Avoid infinite recursion
+        
+        visited.add(place_id)
+        
+        # Get all outgoing arcs from this place
+        outgoing_arcs = [arc for arc in self.arcs if arc['source_id'] == place_id and arc['is_place_to_transition']]
+        
+        if not outgoing_arcs:
+            return "STOP"
+        
+        # If multiple outgoing arcs, this is a choice point
+        if len(outgoing_arcs) > 1:
+            branches = []
+            for arc in outgoing_arcs:
+                transition_id = arc['target_id']
+                transition = next((t for t in self.transitions if t['id'] == transition_id), None)
+                if not transition:
+                    continue
+                
+                next_arcs = [arc for arc in self.arcs if arc['source_id'] == transition_id and not arc['is_place_to_transition']]
+                if not next_arcs:
+                    branches.append(f"{transition['name']}.STOP")
+                else:
+                    for next_arc in next_arcs:
+                        target_place_id = next_arc['target_id']
+                        continuation = self._get_continuation_from_place(target_place_id, visited.copy())
+                        branches.append(f"{transition['name']}.{continuation}")
+            
+            return " + ".join(branches)
+        
+        # Single outgoing arc - linear sequence
+        transition_id = outgoing_arcs[0]['target_id']
+        transition = next((t for t in self.transitions if t['id'] == transition_id), None)
+        if not transition:
+            return "STOP"
+        
+        next_arcs = [arc for arc in self.arcs if arc['source_id'] == transition_id and not arc['is_place_to_transition']]
+        if not next_arcs:
+            return f"{transition['name']}.STOP"
+        
+        target_place_id = next_arcs[0]['target_id']
+        target_place = next((p for p in self.places if p['id'] == target_place_id), None)
+        
+        if not target_place:
+            return f"{transition['name']}.STOP"
+        
+        # Check if this is a reference to a named process
+        for place in self.places:
+            if place['id'] == target_place_id and (place.get('is_process', False) or place.get('tokens', 0) > 0):
+                return f"{transition['name']}.{place['name']}"
+        
+        # Continue recursively
+        continuation = self._get_continuation_from_place(target_place_id, visited.copy())
+        return f"{transition['name']}.{continuation}"
+
+
+
     def _parse_expression(self, expr, source_place_id, depth=0):
         # Basic sequential composition with '.'
         if '.' in expr:
@@ -473,18 +609,20 @@ def main():
     petri_net_window = PetriNetWindow()
     
     # Connect the visualize button to update the Petri net
-    def visualize_petri_net():
-        text = text_editor.text_edit.toPlainText()
+    def visualize_petri_net(self):
+        """Parse the text and visualize the Petri net"""
+        text = self.text_edit.toPlainText()
         if text.strip():
-            success = text_editor.parser.parse(text)
+            success = self.parser.parse(text)
             if success:
-                petri_net_window.update_petri_net(text_editor.parser)
+                self.petri_net_window.update_petri_net(self.parser)
                 # Make sure Petri net window is visible
-                petri_net_window.show()
-                petri_net_window.raise_()
+                self.petri_net_window.show()
+                self.petri_net_window.show_visualization_screen()
+                self.petri_net_window.raise_()
             else:
-                QMessageBox.warning(text_editor, "Parsing Error", 
-                                   "Could not parse the process algebra expression. Check syntax.")
+                QMessageBox.warning(self, "Parsing Error", 
+                            "Could not parse the process algebra expression. Check syntax.")
     
     text_editor.visualize_button.clicked.connect(visualize_petri_net)
     text_editor.example_button.clicked.connect(text_editor.load_example)

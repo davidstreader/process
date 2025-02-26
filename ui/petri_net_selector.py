@@ -124,6 +124,14 @@ class PetriNetSelectorWindow(QMainWindow):
                 item.setData(Qt.UserRole, net)  # Store the full net data
                 item.setToolTip(net['description'])
                 self.list_widget.addItem(item)
+                
+        # Select the first selectable item automatically if available
+        for i in range(self.list_widget.count()):
+            item = self.list_widget.item(i)
+            if item and item.flags() & Qt.ItemIsSelectable:
+                self.list_widget.setCurrentItem(item)
+                break
+
     
     def on_selection_changed(self, current, previous):
         """Handle selection change in the list"""
@@ -179,6 +187,7 @@ class PetriNetSelectorWindow(QMainWindow):
                 self.list_widget.setCurrentItem(item)
                 break
     
+    
     def load_parser_definitions(self):
         """Load Petri net definitions from the parser"""
         # Clear previous parser nets
@@ -194,12 +203,33 @@ class PetriNetSelectorWindow(QMainWindow):
             # Create a complete expression that can be parsed
             full_expr = f"{name} = {expr}"
             
-            net = {
-                'name': f"Process: {name}",
-                'description': full_expr,
-                'expression': full_expr
+            # Skip duplicates
+            duplicate = False
+            for net in self.parser_nets:
+                if net['expression'] == full_expr:
+                    duplicate = True
+                    break
+                    
+            if not duplicate:
+                net = {
+                    'name': f"Process: {name}",
+                    'description': full_expr,
+                    'expression': full_expr
+                }
+                self.parser_nets.append(net)
+    
+        # Add a special entry for the combined processes if there are multiple
+        if len(process_definitions) > 1:
+            # Create a combined expression with all processes
+            combined_expr = "\n".join([f"{name} = {expr}" for name, expr in process_definitions.items()])
+            
+            # Add a "Main System" entry that includes all processes
+            all_processes = {
+                'name': "Main System (All Processes)",
+                'description': "Combined system with all defined processes",
+                'expression': combined_expr
             }
-            self.parser_nets.append(net)
+            self.parser_nets.append(all_processes)
         
         # Refresh the list
         self.populate_list()

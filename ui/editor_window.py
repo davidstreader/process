@@ -249,7 +249,7 @@ MAIN = P | Q"""
         self.settings_window = settings_window
         
         # Connect the visualize button to show the selector instead of directly visualizing
-        self.visualize_button.clicked.connect(self.show_petri_net_selector)
+        self.visualize_button.clicked.connect(self.show_petri_net_selector) 
     #####
     # def show_petri_net_selector(self):
     #     """Show the Petri net selector when the visualize button is clicked"""
@@ -269,6 +269,11 @@ MAIN = P | Q"""
     ####
     # Update this part in ui/editor_window.py
 
+    #def show_petri_net_selector():
+    #def show_petri_net_selector(self, *args):
+    
+    
+        
     def show_petri_net_selector():
         """Show the Petri net selector when the visualize button is clicked"""
         # Get the current text from the editor
@@ -280,6 +285,8 @@ MAIN = P | Q"""
                 self.parser.parse(text)
                 # Successful parse - update the selector's parser reference
                 self.petri_net_window.selector_window.parser = self.parser
+                # Load the parser definitions into the selector
+                self.petri_net_window.selector_window.load_parser_definitions()
             except Exception as e:
                 print(f"Parser error (non-critical): {str(e)}")
             
@@ -289,81 +296,66 @@ MAIN = P | Q"""
                 description=text if len(text) < 100 else text[:97] + "...",
                 expression=text
             )
-    
+
         # Show the selector
         self.petri_net_window.selector_window.show_selector()
-        def visualize_petri_net(self):
-            """Parse the text and visualize the Petri net (legacy method, kept for compatibility)"""
-            text = self.text_edit.toPlainText()
-            if text.strip():
-                success = self.parser.parse(text)
-                if success:
-                    self.petri_net_window.update_petri_net(self.parser)
-                    # Make sure Petri net window is visible
-                    self.petri_net_window.show()
-                    self.petri_net_window.raise_()
-                else:
-                    QMessageBox.warning(self, "Parsing Error", 
-                                    "Could not parse the process algebra expression. Check syntax.")
         
-    
-    
-    def open_load_dialog(self):
-        """Open dialog to load a Petri net"""
-        # Get available nets
-        nets = self.file_manager.get_available_nets()
+        def open_load_dialog(self):
+            """Open dialog to load a Petri net"""
+            # Get available nets
+            nets = self.file_manager.get_available_nets()
+            
+            if not nets:
+                QMessageBox.information(self, "No Nets", "No saved Petri nets found.")
+                return
+            
+            # Open load dialog
+            dialog = LoadDialog(nets, self)
+            if dialog.exec_() == QDialog.Accepted:
+                path = dialog.get_selected_path()
+                if path:
+                    self.load_petri_net_from_file(path)
         
-        if not nets:
-            QMessageBox.information(self, "No Nets", "No saved Petri nets found.")
-            return
-        
-        # Open load dialog
-        dialog = LoadDialog(nets, self)
-        if dialog.exec_() == QDialog.Accepted:
-            path = dialog.get_selected_path()
-            if path:
-                self.load_petri_net_from_file(path)
-    
-    def load_petri_net_from_file(self, file_path):
-        """Load a Petri net from a file"""
-        data = self.file_manager.load_petri_net(file_path)
-        if data:
-            try:
-                # Update parser with loaded data
-                self.parser.reset()
-                self.parser.places = data['places']
-                self.parser.transitions = data['transitions']
-                self.parser.arcs = data['arcs']
-                
-                # Set correct current_id
-                max_place_id = max([p['id'] for p in self.parser.places]) if self.parser.places else -1
-                max_trans_id = max([t['id'] for t in self.parser.transitions]) if self.parser.transitions else -1
-                self.parser.current_id = max(max_place_id, max_trans_id) + 1
-                
-                # Update the Petri net window
-                if self.petri_net_window:
-                    self.petri_net_window.update_petri_net(self.parser)
-                    self.petri_net_window.show()
-                    self.petri_net_window.raise_()
-                
-                # Show success message
-                QMessageBox.information(self, "Load Successful", f"Petri net loaded from '{os.path.basename(file_path)}'")
-                
-                # Generate process algebra code from the Petri net
+        def load_petri_net_from_file(self, file_path):
+            """Load a Petri net from a file"""
+            data = self.file_manager.load_petri_net(file_path)
+            if data:
                 try:
-                    process_algebra_code = self.parser.export_to_process_algebra()
-                    if process_algebra_code:
-                        self.text_edit.setText(process_algebra_code)
+                    # Update parser with loaded data
+                    self.parser.reset()
+                    self.parser.places = data['places']
+                    self.parser.transitions = data['transitions']
+                    self.parser.arcs = data['arcs']
+                    
+                    # Set correct current_id
+                    max_place_id = max([p['id'] for p in self.parser.places]) if self.parser.places else -1
+                    max_trans_id = max([t['id'] for t in self.parser.transitions]) if self.parser.transitions else -1
+                    self.parser.current_id = max(max_place_id, max_trans_id) + 1
+                    
+                    # Update the Petri net window
+                    if self.petri_net_window:
+                        self.petri_net_window.update_petri_net(self.parser)
+                        self.petri_net_window.show()
+                        self.petri_net_window.raise_()
+                    
+                    # Show success message
+                    QMessageBox.information(self, "Load Successful", f"Petri net loaded from '{os.path.basename(file_path)}'")
+                    
+                    # Generate process algebra code from the Petri net
+                    try:
+                        process_algebra_code = self.parser.export_to_process_algebra()
+                        if process_algebra_code:
+                            self.text_edit.setText(process_algebra_code)
+                    except Exception as e:
+                        print(f"Error generating process algebra code: {str(e)}")
+                    
                 except Exception as e:
-                    print(f"Error generating process algebra code: {str(e)}")
-                
-            except Exception as e:
-                QMessageBox.critical(self, "Load Error", f"Error loading Petri net: {str(e)}")
-        else:
-            QMessageBox.critical(self, "Load Error", f"Could not load Petri net from '{file_path}'")
-    
+                    QMessageBox.critical(self, "Load Error", f"Error loading Petri net: {str(e)}")
+            else:
+                QMessageBox.critical(self, "Load Error", f"Could not load Petri net from '{file_path}'")
+        
     def load_last_net(self):
-        """Try to load the last opened Petri net"""
-        last_net = self.file_manager.get_last_net()
-        if last_net:
-            self.load_petri_net_from_file(last_net)
+         """Try to load the last opened Petri net"""
+         last_net = self.file_manager.get_last_net()
+         if last_net:
+             self.load_petri_net_from_file(last_net)
