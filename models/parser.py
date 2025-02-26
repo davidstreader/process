@@ -123,7 +123,8 @@ class ProcessAlgebraParser:
             print(f"Parsing error: {str(e)}")
             print(traceback.format_exc())
             return False
-    
+
+
     def _parse_expression(self, expr, source_place_id, process_name=None, depth=0, base_y=100):
         """Parse a process algebra expression and build the Petri net structure"""
         # Handle choice operator (+) first to split the expression
@@ -161,8 +162,29 @@ class ProcessAlgebraParser:
                 # Check if the next part is a process reference or continuation
                 next_part = parts[1].strip()
                 
+                # Special handling for STOP
+                if next_part.upper() == "STOP":
+                    # Create a terminal STOP place
+                    stop_place_id = self.get_id()
+                    self.places.append({
+                        'id': stop_place_id,
+                        'name': "STOP",
+                        'tokens': 0,
+                        'x': self._get_place_by_id(source_place_id)['x'] + 200,
+                        'y': base_y,
+                        'is_terminal': True
+                    })
+                    
+                    # Connect transition to the STOP place
+                    self.arcs.append({
+                        'source_id': transition_id,
+                        'target_id': stop_place_id,
+                        'is_place_to_transition': False
+                    })
+                    return
+                
                 # If this is a direct process reference at the end (like a.b.P)
-                if next_part in self.process_places and len(parts) == 2:
+                elif next_part in self.process_places and len(parts) == 2:
                     # Direct connection back to a process place
                     target_place_id = self.process_places[next_part]
                     
@@ -200,8 +222,46 @@ class ProcessAlgebraParser:
         # Handle atomic actions or process references
         expr = expr.strip()
         if expr:
+            # Special handling for STOP as a standalone expression
+            if expr.upper() == "STOP":
+                # Create a terminal STOP place if not already connected to one
+                stop_place_id = self.get_id()
+                self.places.append({
+                    'id': stop_place_id,
+                    'name': "STOP",
+                    'tokens': 0,
+                    'x': self._get_place_by_id(source_place_id)['x'] + 100,
+                    'y': base_y,
+                    'is_terminal': True
+                })
+                
+                # Create a transition to the STOP place
+                transition_id = self.get_id()
+                self.transitions.append({
+                    'id': transition_id,
+                    'name': "τ",  # Silent transition
+                    'x': self._get_place_by_id(source_place_id)['x'] + 50,
+                    'y': base_y,
+                    'is_silent': True
+                })
+                
+                # Connect source place to transition
+                self.arcs.append({
+                    'source_id': source_place_id,
+                    'target_id': transition_id,
+                    'is_place_to_transition': True
+                })
+                
+                # Connect transition to STOP place
+                self.arcs.append({
+                    'source_id': transition_id,
+                    'target_id': stop_place_id,
+                    'is_place_to_transition': False
+                })
+                return
+            
             # Check if this is a reference to a defined process
-            if expr in self.process_places:
+            elif expr in self.process_places:
                 # Add this to pending connections to be processed later
                 self.pending_connections.append((source_place_id, expr))
             else:
@@ -239,7 +299,8 @@ class ProcessAlgebraParser:
                     'target_id': terminal_place_id,
                     'is_place_to_transition': False
                 })
-    
+
+   
     def _get_place_by_id(self, place_id):
         """Get a place by its ID"""
         for place in self.places:

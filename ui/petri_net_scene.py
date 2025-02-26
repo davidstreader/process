@@ -34,80 +34,92 @@ class PetriNetScene(QGraphicsScene):
         
         # Draw places (circles)
         for place in parser.places:
-            # Create place circle
-            ellipse = QGraphicsEllipseItem(
-                place['x'] - self.place_radius, 
-                place['y'] - self.place_radius,
-                2 * self.place_radius, 
-                2 * self.place_radius
-            )
-            ellipse.setPen(QPen(Qt.black, 2))
-            ellipse.setBrush(QBrush(QColor(240, 240, 255)))
-            ellipse.setFlag(QGraphicsItem.ItemIsMovable)
-            ellipse.setFlag(QGraphicsItem.ItemIsSelectable)
-            ellipse.setFlag(QGraphicsItem.ItemSendsGeometryChanges)  # Important for movement tracking
-            
-            # Store reference to the original data
-            ellipse.place_data = place
-            ellipse.node_type = 'place'
-            ellipse.node_id = place['id']
-            
-            self.addItem(ellipse)
-            self.place_items[place['id']] = ellipse
-            
-            # Add place name
-            text = QGraphicsTextItem(place['name'])
-            text.setPos(place['x'] - text.boundingRect().width() / 2,
-                        place['y'] - self.place_radius - 20)
-            self.addItem(text)
-            
-            # Add tokens if any
-            if place.get('tokens', 0) > 0:
-                token_radius = 5
-                token = QGraphicsEllipseItem(
-                    place['x'] - token_radius,
-                    place['y'] - token_radius,
-                    2 * token_radius,
-                    2 * token_radius
-                )
-                token.setPen(QPen(Qt.black, 1))
-                token.setBrush(QBrush(Qt.black))
-                self.addItem(token)
+            self.draw_place(place)
         
         # Draw transitions (rectangles)
         for transition in parser.transitions:
-            # Create transition rectangle
-            rect = QGraphicsRectItem(
-                transition['x'] - self.transition_width / 2,
-                transition['y'] - self.transition_height / 2,
-                self.transition_width,
-                self.transition_height
-            )
-            rect.setPen(QPen(Qt.black, 2))
-            rect.setBrush(QBrush(QColor(220, 220, 220)))
-            rect.setFlag(QGraphicsItem.ItemIsMovable)
-            rect.setFlag(QGraphicsItem.ItemIsSelectable)
-            rect.setFlag(QGraphicsItem.ItemSendsGeometryChanges)  # Important for movement tracking
-            
-            # Store reference to the original data
-            rect.transition_data = transition
-            rect.node_type = 'transition'
-            rect.node_id = transition['id']
-            
-            self.addItem(rect)
-            self.transition_items[transition['id']] = rect
-            
-            # Add transition name
-            text = QGraphicsTextItem(transition['name'])
-            text.setPos(transition['x'] - text.boundingRect().width() / 2,
-                       transition['y'] - self.transition_height / 2 - 20)
-            self.addItem(text)
+            self.draw_transition(transition)
         
         # Draw arcs (arrows)
         self.draw_arcs(parser)
         
         # Set scene rect to fit all items with padding
         self.setSceneRect(self.itemsBoundingRect().adjusted(-50, -50, 50, 50))
+    
+    def draw_place(self, place):
+        """Draw a place in the Petri net"""
+        # Create place circle
+        ellipse = QGraphicsEllipseItem(
+            place['x'] - self.place_radius, 
+            place['y'] - self.place_radius,
+            2 * self.place_radius, 
+            2 * self.place_radius
+        )
+        ellipse.setPen(QPen(Qt.black, 2))
+        ellipse.setBrush(QBrush(QColor(240, 240, 255)))
+        ellipse.setFlag(QGraphicsItem.ItemIsMovable)
+        ellipse.setFlag(QGraphicsItem.ItemIsSelectable)
+        ellipse.setFlag(QGraphicsItem.ItemSendsGeometryChanges)  # Important for movement tracking
+        
+        # Store reference to the original data
+        ellipse.place_data = place
+        ellipse.node_type = 'place'
+        ellipse.node_id = place['id']
+        
+        self.addItem(ellipse)
+        self.place_items[place['id']] = ellipse
+        
+        # Add place name
+        text = QGraphicsTextItem(place['name'])
+        text.setPos(place['x'] - text.boundingRect().width() / 2,
+                    place['y'] - self.place_radius - 20)
+        self.addItem(text)
+        
+        # Add tokens if any
+        if place.get('tokens', 0) > 0:
+            token_radius = 5
+            token = QGraphicsEllipseItem(
+                place['x'] - token_radius,
+                place['y'] - token_radius,
+                2 * token_radius,
+                2 * token_radius
+            )
+            token.setPen(QPen(Qt.black, 1))
+            token.setBrush(QBrush(Qt.black))
+            self.addItem(token)
+        
+        return ellipse
+    
+    def draw_transition(self, transition):
+        """Draw a transition in the Petri net"""
+        # Create transition rectangle
+        rect = QGraphicsRectItem(
+            transition['x'] - self.transition_width / 2,
+            transition['y'] - self.transition_height / 2,
+            self.transition_width,
+            self.transition_height
+        )
+        rect.setPen(QPen(Qt.black, 2))
+        rect.setBrush(QBrush(QColor(220, 220, 220)))
+        rect.setFlag(QGraphicsItem.ItemIsMovable)
+        rect.setFlag(QGraphicsItem.ItemIsSelectable)
+        rect.setFlag(QGraphicsItem.ItemSendsGeometryChanges)  # Important for movement tracking
+        
+        # Store reference to the original data
+        rect.transition_data = transition
+        rect.node_type = 'transition'
+        rect.node_id = transition['id']
+        
+        self.addItem(rect)
+        self.transition_items[transition['id']] = rect
+        
+        # Add transition name
+        text = QGraphicsTextItem(transition['name'])
+        text.setPos(transition['x'] - text.boundingRect().width() / 2,
+                   transition['y'] - self.transition_height / 2 - 20)
+        self.addItem(text)
+        
+        return rect
     
     def itemChange(self, change, value):
         """Handle changes to items in the scene"""
@@ -269,8 +281,8 @@ class PetriNetScene(QGraphicsScene):
         
         # Redraw arcs
         self.draw_arcs(self.parser)
-
-# Now add this to the DraggableScene class or any other derived scene class
+        
+          
 class DraggableScene(PetriNetScene):
     """Enhanced PetriNetScene with draggable elements and arc redrawing"""
     
@@ -278,6 +290,83 @@ class DraggableScene(PetriNetScene):
         super().__init__(parent)
         self.dragged_item = None
         self.last_position = None
+        # Track related items (labels, tokens) for each node
+        self.node_related_items = {}  # {node_id: {type: [items]}}
+    
+    def clear_and_draw_petri_net(self, parser):
+        """Override to track related items"""
+        # Clear tracking dictionaries
+        self.node_related_items = {}
+        
+        # Call the parent implementation
+        super().clear_and_draw_petri_net(parser)
+        
+        # Create tracking structures for places
+        for place in parser.places:
+            place_id = place['id']
+            self.node_related_items[f"p{place_id}"] = {
+                "labels": [],
+                "tokens": []
+            }
+        
+        # Create tracking structures for transitions
+        for transition in parser.transitions:
+            transition_id = transition['id']
+            self.node_related_items[f"t{transition_id}"] = {
+                "labels": []
+            }
+    
+    def draw_place(self, place):
+        """Enhanced place drawing to track labels and tokens"""
+        # Create the place circle
+        ellipse = self._create_place_item(place)
+        self.addItem(ellipse)
+        self.place_items[place['id']] = ellipse
+        
+        # Add place name
+        text = QGraphicsTextItem(place['name'])
+        text.setPos(place['x'] - text.boundingRect().width() / 2,
+                    place['y'] - self.place_radius - 20)
+        self.addItem(text)
+        
+        # Track the label
+        self.node_related_items[f"p{place['id']}"]["labels"].append(text)
+        
+        # Add tokens if any
+        if place.get('tokens', 0) > 0:
+            token_radius = 5
+            token = QGraphicsEllipseItem(
+                place['x'] - token_radius,
+                place['y'] - token_radius,
+                2 * token_radius,
+                2 * token_radius
+            )
+            token.setPen(QPen(Qt.black, 1))
+            token.setBrush(QBrush(Qt.black))
+            self.addItem(token)
+            
+            # Track the token
+            self.node_related_items[f"p{place['id']}"]["tokens"].append(token)
+        
+        return ellipse
+    
+    def draw_transition(self, transition):
+        """Enhanced transition drawing to track labels"""
+        # Create the transition rectangle
+        rect = self._create_transition_item(transition)
+        self.addItem(rect)
+        self.transition_items[transition['id']] = rect
+        
+        # Add transition name
+        text = QGraphicsTextItem(transition['name'])
+        text.setPos(transition['x'] - text.boundingRect().width() / 2,
+                   transition['y'] - self.transition_height / 2 - 20)
+        self.addItem(text)
+        
+        # Track the label
+        self.node_related_items[f"t{transition['id']}"]["labels"].append(text)
+        
+        return rect
     
     def mousePressEvent(self, event):
         """Handle mouse press for dragging nodes"""
@@ -305,8 +394,11 @@ class DraggableScene(PetriNetScene):
         # Let Qt handle the actual movement
         super().mouseMoveEvent(event)
         
-        # Store the last moved item for redrawing arcs
+        # Update related items if a node is being dragged
         if self.dragged_item:
+            self.update_related_items_position()
+            
+            # Store the last moved item for redrawing arcs
             self.last_moved_item = self.dragged_item
     
     def mouseReleaseEvent(self, event):
@@ -328,6 +420,9 @@ class DraggableScene(PetriNetScene):
                 self.dragged_item.transition_data['x'] = center.x()
                 self.dragged_item.transition_data['y'] = center.y()
             
+            # Final update of related items
+            self.update_related_items_position()
+            
             # Redraw all arcs to update connections
             self.redraw_arcs()
             
@@ -340,3 +435,75 @@ class DraggableScene(PetriNetScene):
             self.last_position = None
         
         super().mouseReleaseEvent(event)
+    
+    def update_related_items_position(self):
+        """Update positions of labels and tokens when a node is dragged"""
+        if not self.dragged_item:
+            return
+        
+        # Get the node type and ID
+        node_type = self.dragged_item.node_type
+        node_id = self.dragged_item.node_id
+        node_key = f"{'p' if node_type == 'place' else 't'}{node_id}"
+        
+        # Get the new center position of the node
+        center = self.dragged_item.sceneBoundingRect().center()
+        x, y = center.x(), center.y()
+        
+        # Update label positions
+        if node_key in self.node_related_items and 'labels' in self.node_related_items[node_key]:
+            for label in self.node_related_items[node_key]['labels']:
+                # Position the label above the node
+                label.setPos(x - label.boundingRect().width() / 2, 
+                             y - (self.place_radius if node_type == 'place' else self.transition_height/2) - 20)
+        
+        # Update token positions (for places only)
+        if node_type == 'place' and node_key in self.node_related_items and 'tokens' in self.node_related_items[node_key]:
+            for token in self.node_related_items[node_key]['tokens']:
+                # Token should be centered within the place
+                token_radius = token.rect().width() / 2
+                token.setPos(x - token_radius, y - token_radius)
+    
+    def _create_place_item(self, place):
+        """Create a draggable place item"""
+        ellipse = QGraphicsEllipseItem(
+            place['x'] - self.place_radius, 
+            place['y'] - self.place_radius,
+            2 * self.place_radius, 
+            2 * self.place_radius
+        )
+        ellipse.setPen(QPen(Qt.black, 2))
+        ellipse.setBrush(QBrush(QColor(240, 240, 255)))
+        ellipse.setFlag(QGraphicsItem.ItemIsMovable)
+        ellipse.setFlag(QGraphicsItem.ItemIsSelectable)
+        ellipse.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
+        
+        # Store reference to the original data
+        ellipse.place_data = place
+        ellipse.node_type = 'place'
+        ellipse.node_id = place['id']
+        
+        return ellipse
+    
+    def _create_transition_item(self, transition):
+        """Create a draggable transition item"""
+        rect = QGraphicsRectItem(
+            transition['x'] - self.transition_width / 2,
+            transition['y'] - self.transition_height / 2,
+            self.transition_width,
+            self.transition_height
+        )
+        rect.setPen(QPen(Qt.black, 2))
+        rect.setBrush(QBrush(QColor(220, 220, 220)))
+        rect.setFlag(QGraphicsItem.ItemIsMovable)
+        rect.setFlag(QGraphicsItem.ItemIsSelectable)
+        rect.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
+        
+        # Store reference to the original data
+        rect.transition_data = transition
+        rect.node_type = 'transition'
+        rect.node_id = transition['id']
+        
+        return rect
+    
+
