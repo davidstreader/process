@@ -1,3 +1,5 @@
+# Update this in main.py
+
 import sys
 from PyQt5.QtWidgets import QApplication
 from ui.editor_window import TextEditorWindow

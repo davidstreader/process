@@ -1,3 +1,5 @@
+# ui/editor_window.py
+
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, 
                            QHBoxLayout, QTextEdit, QPushButton, 
                            QLabel, QMessageBox, QFileDialog, QMenu, QAction,
@@ -8,6 +10,7 @@ import os
 import json
 from models.parser import ProcessAlgebraParser
 from models.file_manager import FileManager
+from ui.petri_net_selector import PetriNetSelectorWindow
 
 class SaveDialog(QDialog):
     """Dialog for saving Petri nets with a name"""
@@ -143,6 +146,23 @@ class TextEditorWindow(QMainWindow):
         # Check for last net and try to load it
         self.load_last_net()
     
+
+    def open_load_dialog(self):
+        """Open dialog to load a Petri net"""
+        # Get available nets
+        nets = self.file_manager.get_available_nets()
+        
+        if not nets:
+            QMessageBox.information(self, "No Nets", "No saved Petri nets found.")
+            return
+        
+        # Open load dialog
+        dialog = LoadDialog(nets, self)
+        if dialog.exec_() == QDialog.Accepted:
+            path = dialog.get_selected_path()
+            if path:
+                self.load_petri_net_from_file(path)
+
     def create_menu_bar(self):
         """Create the application menu bar"""
         menubar = self.menuBar()
@@ -165,6 +185,9 @@ class TextEditorWindow(QMainWindow):
         # Save action
         save_action = QAction('Save...', self)
         save_action.setShortcut('Ctrl+S')
+        #
+        # 
+        #save_action.triggered.connect(self.open_save_dialog(self))
         save_action.triggered.connect(self.open_save_dialog)
         file_menu.addAction(save_action)
         
@@ -182,7 +205,7 @@ class TextEditorWindow(QMainWindow):
         # Visualize action
         visualize_action = QAction('Visualize', self)
         visualize_action.setShortcut('F5')
-        visualize_action.triggered.connect(self.visualize_petri_net)
+        visualize_action.triggered.connect(self.show_petri_net_selector)  # Updated to use selector
         petri_menu.addAction(visualize_action)
         
         # Load example action
@@ -198,28 +221,7 @@ Q = e.P + f.g.Q
 MAIN = P | Q"""
         self.text_edit.setText(example)
     
-    def setup_connections(self, petri_net_window, settings_window):
-        """Set up connections to other windows"""
-        self.petri_net_window = petri_net_window
-        self.settings_window = settings_window
-        
-        # Connect the visualize button to update the Petri net
-        self.visualize_button.clicked.connect(self.visualize_petri_net)
-    
-    def visualize_petri_net(self):
-        """Parse the text and visualize the Petri net"""
-        text = self.text_edit.toPlainText()
-        if text.strip():
-            success = self.parser.parse(text)
-            if success:
-                self.petri_net_window.update_petri_net(self.parser)
-                # Make sure Petri net window is visible
-                self.petri_net_window.show()
-                self.petri_net_window.raise_()
-            else:
-                QMessageBox.warning(self, "Parsing Error", 
-                                   "Could not parse the process algebra expression. Check syntax.")
-    
+
     def open_save_dialog(self):
         """Open dialog to save current Petri net"""
         # Ensure there's a Petri net to save
@@ -239,6 +241,72 @@ MAIN = P | Q"""
                     QMessageBox.critical(self, "Save Error", f"Error saving Petri net: {str(e)}")
             else:
                 QMessageBox.warning(self, "Save Error", "Please enter a name for the Petri net.")
+
+    
+    def setup_connections(self, petri_net_window, settings_window):
+        """Set up connections to other windows"""
+        self.petri_net_window = petri_net_window
+        self.settings_window = settings_window
+        
+        # Connect the visualize button to show the selector instead of directly visualizing
+        self.visualize_button.clicked.connect(self.show_petri_net_selector)
+    #####
+    # def show_petri_net_selector(self):
+    #     """Show the Petri net selector when the visualize button is clicked"""
+    #     # Get the current text from the editor
+    #     text = self.text_edit.toPlainText()
+        
+    #     if text.strip():
+    #         # If there's text in the editor, add it as a custom net
+    #         self.petri_net_window.selector_window.add_custom_net(
+    #             name="Current Editor Content",
+    #             description=text if len(text) < 100 else text[:97] + "...",
+    #             expression=text
+    #         )
+        
+    #     # Show the selector
+    #     self.petri_net_window.show_selector()
+    ####
+    # Update this part in ui/editor_window.py
+
+    def show_petri_net_selector():
+        """Show the Petri net selector when the visualize button is clicked"""
+        # Get the current text from the editor
+        text = self.text_edit.toPlainText()
+        
+        if text.strip():
+            # First try to parse the text to get process definitions
+            try:
+                self.parser.parse(text)
+                # Successful parse - update the selector's parser reference
+                self.petri_net_window.selector_window.parser = self.parser
+            except Exception as e:
+                print(f"Parser error (non-critical): {str(e)}")
+            
+            # Add the current editor content as a custom net
+            self.petri_net_window.selector_window.add_custom_net(
+                name="Current Editor Content",
+                description=text if len(text) < 100 else text[:97] + "...",
+                expression=text
+            )
+    
+        # Show the selector
+        self.petri_net_window.selector_window.show_selector()
+        def visualize_petri_net(self):
+            """Parse the text and visualize the Petri net (legacy method, kept for compatibility)"""
+            text = self.text_edit.toPlainText()
+            if text.strip():
+                success = self.parser.parse(text)
+                if success:
+                    self.petri_net_window.update_petri_net(self.parser)
+                    # Make sure Petri net window is visible
+                    self.petri_net_window.show()
+                    self.petri_net_window.raise_()
+                else:
+                    QMessageBox.warning(self, "Parsing Error", 
+                                    "Could not parse the process algebra expression. Check syntax.")
+        
+    
     
     def open_load_dialog(self):
         """Open dialog to load a Petri net"""
@@ -274,7 +342,7 @@ MAIN = P | Q"""
                 
                 # Update the Petri net window
                 if self.petri_net_window:
-                    self.petri_net_window.update_petri_net(self.parser, file_path)
+                    self.petri_net_window.update_petri_net(self.parser)
                     self.petri_net_window.show()
                     self.petri_net_window.raise_()
                 

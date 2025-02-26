@@ -1,3 +1,5 @@
+# Update this in ui/settings_window.py
+
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QSlider, QDoubleSpinBox, QSpinBox, QPushButton)
 from PyQt5.QtCore import Qt, pyqtSignal
@@ -21,7 +23,7 @@ class LayoutSettingsWindow(QMainWindow):
         spring_layout = QHBoxLayout()
         spring_layout.addWidget(QLabel("Spring Constant:"))
         self.spring_slider = QSlider(Qt.Horizontal)
-        self.spring_slider.setRange(1, 100)
+        self.spring_slider.setRange(10, 1000)
         self.spring_slider.setValue(10)  # Default value of 0.1
         spring_layout.addWidget(self.spring_slider)
         self.spring_spin = QDoubleSpinBox()
@@ -59,16 +61,16 @@ class LayoutSettingsWindow(QMainWindow):
         damping_layout.addWidget(self.damping_spin)
         layout.addLayout(damping_layout)
         
-        # Minimum distance
+        # Minimum distance - UPDATED RANGE
         min_dist_layout = QHBoxLayout()
         min_dist_layout.addWidget(QLabel("Minimum Distance:"))
         self.min_dist_slider = QSlider(Qt.Horizontal)
-        self.min_dist_slider.setRange(50, 200)
+        self.min_dist_slider.setRange(50, 1000)  # Increased upper limit to 1000
         self.min_dist_slider.setValue(100)  # Default value of 100
         min_dist_layout.addWidget(self.min_dist_slider)
         self.min_dist_spin = QDoubleSpinBox()
-        self.min_dist_spin.setRange(50, 200)
-        self.min_dist_spin.setSingleStep(5)
+        self.min_dist_spin.setRange(50, 1000)  # Increased upper limit to 1000
+        self.min_dist_spin.setSingleStep(10)
         self.min_dist_spin.setValue(100)
         min_dist_layout.addWidget(self.min_dist_spin)
         layout.addLayout(min_dist_layout)

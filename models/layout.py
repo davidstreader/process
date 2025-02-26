@@ -1,5 +1,8 @@
+# Update this in models/layout.py
+
 import math
 import random
+
 class ForceDirectedLayout:
     """Force-directed (spring embedder) layout algorithm for Petri nets"""
     
@@ -18,28 +21,42 @@ class ForceDirectedLayout:
         self.velocities = {}
     
     def set_parameters(self, params):
-        """Update layout parameters"""
+        """Update layout parameters from settings window"""
+        # Only update parameters that are provided
         if 'spring_constant' in params:
             self.spring_constant = params['spring_constant']
+            print(f"Updated spring_constant to {self.spring_constant}")
+            
         if 'repulsion_constant' in params:
             self.repulsion_constant = params['repulsion_constant']
+            print(f"Updated repulsion_constant to {self.repulsion_constant}")
+            
         if 'damping' in params:
             self.damping = params['damping']
+            print(f"Updated damping to {self.damping}")
+            
         if 'min_distance' in params:
             self.min_distance = params['min_distance']
+            print(f"Updated min_distance to {self.min_distance}")
+            
         if 'max_iterations' in params:
             self.max_iterations = params['max_iterations']
+            print(f"Updated max_iterations to {self.max_iterations}")
+            
         if 'temperature' in params:
             self.temperature = params['temperature']
+            print(f"Updated temperature to {self.temperature}")
+            
         if 'cooling_factor' in params:
             self.cooling_factor = params['cooling_factor']
+            print(f"Updated cooling_factor to {self.cooling_factor}")
+            
         if 'timestep' in params:
             self.timestep = params['timestep']
+            print(f"Updated timestep to {self.timestep}")
     
     def initialize_layout(self, parser):
         """Initialize the layout with random positions if needed and reset velocities"""
-        import random
-        
         # Initialize velocities for all nodes
         self.velocities = {}
         
@@ -89,8 +106,6 @@ class ForceDirectedLayout:
     
     def _calculate_forces(self, parser):
         """Calculate forces for each node based on spring-embedder model"""
-        import math
-        
         forces = {}
         
         # Initialize forces for all nodes
@@ -111,14 +126,19 @@ class ForceDirectedLayout:
                 # Avoid division by zero
                 distance = max(0.1, math.sqrt(dx*dx + dy*dy))
                 
+                # Use min_distance parameter from settings
+                min_distance = self.min_distance
+                
                 # Repulsive force inversely proportional to distance
-                if distance < self.min_distance * 2:  # Increased range for repulsion
-                    force = self.repulsion_constant / (distance * distance)
+                # Important: Use the min_distance from settings
+                if distance < min_distance * 100:  # Increased range for repulsion
+                    # Use repulsion_constant from settings
+                    force = 10*self.repulsion_constant / (distance * distance)
                     
                     # Normalize direction
-                    if distance > 0:
-                        dx /= distance
-                        dy /= distance
+                  #  if distance > 0:
+                  #      dx /= distance
+                  #      dy /= distance
                     
                     # Apply the force to both nodes in opposite directions
                     if not node1.get('fixed', False):
@@ -174,10 +194,10 @@ class ForceDirectedLayout:
                 # Avoid division by zero
                 distance = max(0.1, math.sqrt(dx*dx + dy*dy))
                 
-                # Calculate spring force proportional to distance
-                # Use logarithmic force for better stability
+                # Use min_distance and spring_constant from settings
                 ideal_dist = self.min_distance * 1.5
-                force = self.spring_constant * math.log(distance / ideal_dist + 1) * distance
+              #  force = self.spring_constant * math.log(distance / ideal_dist + 10) * distance
+                force = self.spring_constant * math.log(distance / ideal_dist + 10) * distance
                 
                 # Normalize direction
                 if distance > 0:
@@ -226,21 +246,19 @@ class ForceDirectedLayout:
     
     def _update_positions(self, parser, forces, temperature):
         """Update node positions based on calculated forces"""
-        import math
-        
         # Update places
         for place in parser.places:
             if not place.get('fixed', False):
                 node_id = f"p{place['id']}"
                 
-                # Apply forces to velocity (with damping)
+                # Apply forces to velocity (with damping from settings)
                 self.velocities[node_id]['x'] = self.velocities[node_id]['x'] * self.damping + forces[node_id]['x'] * self.timestep
                 self.velocities[node_id]['y'] = self.velocities[node_id]['y'] * self.damping + forces[node_id]['y'] * self.timestep
                 
                 # Limit movement by temperature
                 displacement = math.sqrt(self.velocities[node_id]['x']**2 + self.velocities[node_id]['y']**2)
                 if displacement > 0:
-                    scale = min(displacement, temperature * 30) / displacement  # Scale temperature effect
+                    scale = min(displacement, temperature * 30) / displacement
                     
                     # Update position
                     place['x'] += self.velocities[node_id]['x'] * scale
@@ -255,14 +273,14 @@ class ForceDirectedLayout:
             if not transition.get('fixed', False):
                 node_id = f"t{transition['id']}"
                 
-                # Apply forces to velocity (with damping)
+                # Apply forces to velocity (with damping from settings)
                 self.velocities[node_id]['x'] = self.velocities[node_id]['x'] * self.damping + forces[node_id]['x'] * self.timestep
                 self.velocities[node_id]['y'] = self.velocities[node_id]['y'] * self.damping + forces[node_id]['y'] * self.timestep
                 
                 # Limit movement by temperature
                 displacement = math.sqrt(self.velocities[node_id]['x']**2 + self.velocities[node_id]['y']**2)
                 if displacement > 0:
-                    scale = min(displacement, temperature * 30) / displacement  # Scale temperature effect
+                    scale = min(displacement, temperature * 30) / displacement
                     
                     # Update position
                     transition['x'] += self.velocities[node_id]['x'] * scale

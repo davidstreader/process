@@ -1,300 +1,16 @@
+# Update this in ui/petri_net_window.py
+
 import sys
-import os
-from pathlib import Path
-
-# Add parent directory to Python path to resolve module imports
-current_dir = Path(__file__).parent
-parent_dir = current_dir.parent
-sys.path.insert(0, str(parent_dir))
-
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                             QPushButton, QLabel, QGraphicsView, QCheckBox, QMessageBox,
-                             QGraphicsItem, QGraphicsEllipseItem, QGraphicsRectItem,
-                             QGraphicsLineItem, QGraphicsTextItem, QGraphicsScene, QToolTip)
-from PyQt5.QtCore import Qt, QTimer, QPointF, QRectF
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QTransform
+                            QPushButton, QLabel, QGraphicsView, QCheckBox, 
+                            QMessageBox, QGraphicsItem, QGraphicsScene)
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor
 
-# Now import from models package
 from models.layout import ForceDirectedLayout
-from ui.petri_net_scene import PetriNetScene
-
-class DraggableScene(PetriNetScene):
-    """Enhanced Petri net scene with draggable nodes and tooltips"""
-    
-    def __init__(self, parent=None):
-        super().__init__()
-        self.parent = parent
-        self.dragged_item = None
-        self.dragged_item_type = None
-        self.dragged_item_id = None
-        self.place_items = {}  # Maps place IDs to their QGraphicsItems
-        self.transition_items = {}  # Maps transition IDs to their QGraphicsItems
-        
-    def clear_and_draw_petri_net(self, parser):
-        """Clear the scene and draw the Petri net with draggable items"""
-        self.clear()
-        self.place_items = {}
-        self.transition_items = {}
-        
-        # Draw places (circles)
-        for place in parser.places:
-            ellipse = QGraphicsEllipseItem(
-                place['x'] - self.place_radius, 
-                place['y'] - self.place_radius,
-                2 * self.place_radius, 
-                2 * self.place_radius
-            )
-            ellipse.setPen(QPen(Qt.black, 2))
-            ellipse.setBrush(QBrush(QColor(240, 240, 255)))
-            ellipse.setFlag(QGraphicsItem.ItemIsMovable)
-            ellipse.setFlag(QGraphicsItem.ItemIsSelectable)
-            ellipse.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
-            ellipse.setAcceptHoverEvents(True)
-            
-            # Store place data in the item for access during hover/drag
-            ellipse.place_data = place
-            self.addItem(ellipse)
-            
-            # Map this item to its ID for later reference
-            self.place_items[place['id']] = ellipse
-            
-            # Add place name
-            text = QGraphicsTextItem(place['name'])
-            text.setPos(place['x'] - text.boundingRect().width() / 2,
-                        place['y'] - self.place_radius - 20)
-            self.addItem(text)
-            
-            # Add tokens (black dots)
-            if place['tokens'] > 0:
-                token_radius = 5
-                token = QGraphicsEllipseItem(
-                    place['x'] - token_radius,
-                    place['y'] - token_radius,
-                    2 * token_radius,
-                    2 * token_radius
-                )
-                token.setPen(QPen(Qt.black, 1))
-                token.setBrush(QBrush(Qt.black))
-                self.addItem(token)
-        
-        # Draw transitions (rectangles)
-        for transition in parser.transitions:
-            rect = QGraphicsRectItem(
-                transition['x'] - self.transition_width / 2,
-                transition['y'] - self.transition_height / 2,
-                self.transition_width,
-                self.transition_height
-            )
-            rect.setPen(QPen(Qt.black, 2))
-            rect.setBrush(QBrush(QColor(220, 220, 220)))
-            rect.setFlag(QGraphicsItem.ItemIsMovable)
-            rect.setFlag(QGraphicsItem.ItemIsSelectable)
-            rect.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
-            rect.setAcceptHoverEvents(True)
-            
-            # Store transition data in the item for access during hover/drag
-            rect.transition_data = transition
-            self.addItem(rect)
-            
-            # Map this item to its ID for later reference
-            self.transition_items[transition['id']] = rect
-            
-            # Add transition name
-            text = QGraphicsTextItem(transition['name'])
-            text.setPos(transition['x'] - text.boundingRect().width() / 2,
-                       transition['y'] - self.transition_height / 2 - 20)
-            self.addItem(text)
-        
-        # Draw arcs (arrows) - same as before
-        self.draw_arcs(parser)
-        
-        # Set scene rect to fit all items with some padding
-        self.setSceneRect(self.itemsBoundingRect().adjusted(-50, -50, 50, 50))
-    
-    def draw_arcs(self, parser):
-        """Draw arcs between places and transitions"""
-        for arc in parser.arcs:
-            source_id = arc['source_id']
-            target_id = arc['target_id']
-            
-            start_x, start_y = 0, 0
-            end_x, end_y = 0, 0
-            
-            # Get start and end coordinates
-            if arc['is_place_to_transition']:
-                # From place to transition
-                for place in parser.places:
-                    if place['id'] == source_id:
-                        start_x, start_y = place['x'], place['y']
-                        break
-                
-                for transition in parser.transitions:
-                    if transition['id'] == target_id:
-                        end_x, end_y = transition['x'], transition['y']
-                        break
-            else:
-                # From transition to place
-                for transition in parser.transitions:
-                    if transition['id'] == source_id:
-                        start_x, start_y = transition['x'], transition['y']
-                        break
-                
-                for place in parser.places:
-                    if place['id'] == target_id:
-                        end_x, end_y = place['x'], place['y']
-                        break
-            
-            # Calculate direction vector
-            dx = end_x - start_x
-            dy = end_y - start_y
-            
-            # Normalize vector
-            length = (dx**2 + dy**2)**0.5
-            if length > 0:
-                dx /= length
-                dy /= length
-            
-            # Adjust start and end points to be on the boundaries of nodes
-            if arc['is_place_to_transition']:
-                start_x += dx * self.place_radius
-                start_y += dy * self.place_radius
-                end_x -= dx * self.transition_width / 2
-                end_y -= dy * self.transition_height / 2
-            else:
-                start_x += dx * self.transition_width / 2
-                start_y += dy * self.transition_height / 2
-                end_x -= dx * self.place_radius
-                end_y -= dy * self.place_radius
-            
-            # Draw the line
-            line = QGraphicsLineItem(start_x, start_y, end_x, end_y)
-            line.setPen(QPen(Qt.black, 1.5))
-            self.addItem(line)
-            
-            # Draw the arrow head (same as before)
-            self.draw_arrow_head(end_x, end_y, dx, dy)
-    
-    def draw_arrow_head(self, end_x, end_y, dx, dy):
-        """Draw arrow head at the end of an arc"""
-        import math
-        
-        arrow_angle = 25  # degrees
-        arrow_length = self.arrow_size
-        
-        # Calculate arrow points
-        angle1 = arrow_angle * (3.14159 / 180)
-        angle2 = -arrow_angle * (3.14159 / 180)
-        
-        arrow_dx1 = dx * math.cos(angle1) - dy * math.sin(angle1)
-        arrow_dy1 = dx * math.sin(angle1) + dy * math.cos(angle1)
-        
-        arrow_dx2 = dx * math.cos(angle2) - dy * math.sin(angle2)
-        arrow_dy2 = dx * math.sin(angle2) + dy * math.cos(angle2)
-        
-        arrow_point1_x = end_x - arrow_length * arrow_dx1
-        arrow_point1_y = end_y - arrow_length * arrow_dy1
-        
-        arrow_point2_x = end_x - arrow_length * arrow_dx2
-        arrow_point2_y = end_y - arrow_length * arrow_dy2
-        
-        # Draw the arrow head
-        arrow1 = QGraphicsLineItem(end_x, end_y, arrow_point1_x, arrow_point1_y)
-        arrow2 = QGraphicsLineItem(end_x, end_y, arrow_point2_x, arrow_point2_y)
-        arrow1.setPen(QPen(Qt.black, 1.5))
-        arrow2.setPen(QPen(Qt.black, 1.5))
-        self.addItem(arrow1)
-        self.addItem(arrow2)
-    
-    def mousePressEvent(self, event):
-        """Handle mouse press events for dragging nodes"""
-        item = self.itemAt(event.scenePos(), QTransform())
-        
-        # Check if the item is a place or transition
-        if item and (hasattr(item, 'place_data') or hasattr(item, 'transition_data')):
-            self.dragged_item = item
-            
-            if hasattr(item, 'place_data'):
-                self.dragged_item_type = 'place'
-                self.dragged_item_id = item.place_data['id']
-            else:
-                self.dragged_item_type = 'transition'
-                self.dragged_item_id = item.transition_data['id']
-                
-            # Highlight the selected item
-            item.setBrush(QBrush(QColor(255, 255, 150)))
-            
-            # Display detailed information tooltip
-            self.show_item_tooltip(item, event.screenPos())
-            
-            # Let the parent handle the dragging
-            if self.parent and hasattr(self.parent, 'start_node_drag'):
-                self.parent.start_node_drag(self.dragged_item_type, self.dragged_item_id)
-        
-        super().mousePressEvent(event)
-    
-    def mouseReleaseEvent(self, event):
-        """Handle mouse release events after dragging"""
-        if self.dragged_item:
-            # Update the node position in the data model
-            if self.dragged_item_type == 'place' and hasattr(self.dragged_item, 'place_data'):
-                self.dragged_item.place_data['x'] = self.dragged_item.scenePos().x() + self.place_radius
-                self.dragged_item.place_data['y'] = self.dragged_item.scenePos().y() + self.place_radius
-                
-                # Reset the brush
-                self.dragged_item.setBrush(QBrush(QColor(240, 240, 255)))
-                
-            elif self.dragged_item_type == 'transition' and hasattr(self.dragged_item, 'transition_data'):
-                self.dragged_item.transition_data['x'] = self.dragged_item.scenePos().x() + self.transition_width / 2
-                self.dragged_item.transition_data['y'] = self.dragged_item.scenePos().y() + self.transition_height / 2
-                
-                # Reset the brush
-                self.dragged_item.setBrush(QBrush(QColor(220, 220, 220)))
-            
-            # Notify the parent that the drag is complete
-            if self.parent and hasattr(self.parent, 'end_node_drag'):
-                self.parent.end_node_drag(self.dragged_item_type, self.dragged_item_id)
-            
-            self.dragged_item = None
-            self.dragged_item_type = None
-            self.dragged_item_id = None
-            
-            # Need to redraw arcs to match new node positions
-            if self.parent and hasattr(self.parent, 'update_arcs'):
-                self.parent.update_arcs()
-        
-        super().mouseReleaseEvent(event)
-    
-    def mouseMoveEvent(self, event):
-        """Handle mouse move events during dragging"""
-        super().mouseMoveEvent(event)
-        
-        # Update the tooltip position if an item is being dragged
-        if self.dragged_item:
-            self.show_item_tooltip(self.dragged_item, event.screenPos())
-    
-    def hoverEnterEvent(self, event):
-        """Handle hover enter events to show tooltips"""
-        item = self.itemAt(event.scenePos(), QTransform())
-        
-        if item and (hasattr(item, 'place_data') or hasattr(item, 'transition_data')):
-            self.show_item_tooltip(item, event.screenPos())
-    
-    def show_item_tooltip(self, item, pos):
-        """Show a tooltip with node information"""
-        if hasattr(item, 'place_data'):
-            place = item.place_data
-            tooltip = f"<b>Place: {place['name']}</b><br>"
-            tooltip += f"ID: {place['id']}<br>"
-            tooltip += f"Tokens: {place['tokens']}<br>"
-            tooltip += f"Position: ({place['x']:.1f}, {place['y']:.1f})"
-            
-        elif hasattr(item, 'transition_data'):
-            transition = item.transition_data
-            tooltip = f"<b>Transition: {transition['name']}</b><br>"
-            tooltip += f"ID: {transition['id']}<br>"
-            tooltip += f"Position: ({transition['x']:.1f}, {transition['y']:.1f})"
-        
-        QToolTip.showText(pos, tooltip)
+from models.parser import ProcessAlgebraParser
+from ui.petri_net_scene import PetriNetScene, DraggableScene
+from ui.petri_net_selector import PetriNetSelectorWindow
 
 class PetriNetWindow(QMainWindow):
     """Window for visualizing the Petri net with force-directed layout"""
@@ -308,11 +24,24 @@ class PetriNetWindow(QMainWindow):
         main_widget = QWidget()
         layout = QVBoxLayout(main_widget)
         
-        # Create graphics view and scene
+        # Create initial selection message
+        self.selection_label = QLabel("<h3>Please select a Petri net to visualize</h3>")
+        self.selection_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.selection_label)
+        
+        # Add select button
+        self.select_button = QPushButton("Select Petri Net")
+        layout.addWidget(self.select_button)
+        
+        # Create graphics view and scene (initially hidden)
+        self.view_widget = QWidget()
+        view_layout = QVBoxLayout(self.view_widget)
+        
         self.scene = DraggableScene(self)
         self.view = QGraphicsView(self.scene)
         self.view.setRenderHint(QPainter.Antialiasing)
-        self.view.setDragMode(QGraphicsView.NoDrag)  # We'll handle dragging ourselves
+        self.view.setDragMode(QGraphicsView.NoDrag)
+        view_layout.addWidget(self.view)
         
         # Add zoom controls
         zoom_layout = QHBoxLayout()
@@ -322,6 +51,7 @@ class PetriNetWindow(QMainWindow):
         zoom_layout.addWidget(self.zoom_in_button)
         zoom_layout.addWidget(self.zoom_out_button)
         zoom_layout.addWidget(self.reset_view_button)
+        view_layout.addLayout(zoom_layout)
         
         # Add layout controls
         layout_control_layout = QHBoxLayout()
@@ -331,52 +61,124 @@ class PetriNetWindow(QMainWindow):
         layout_control_layout.addWidget(self.enable_layout_checkbox)
         layout_control_layout.addWidget(self.apply_layout_button)
         layout_control_layout.addWidget(self.settings_button)
+        view_layout.addLayout(layout_control_layout)
         
-        # Add controls to main layout
-        layout.addWidget(QLabel("<b>Petri Net Visualization</b>"))
-        layout.addWidget(self.view)
-        layout.addLayout(zoom_layout)
-        layout.addLayout(layout_control_layout)
+        # Add "back to selection" button
+        back_layout = QHBoxLayout()
+        self.back_button = QPushButton("Back to Selection")
+        back_layout.addWidget(self.back_button)
+        view_layout.addLayout(back_layout)
+        
+        # Add the view widget to the main layout (initially hidden)
+        layout.addWidget(self.view_widget)
+        self.view_widget.setVisible(False)
         
         self.setCentralWidget(main_widget)
         
         # Set up force-directed layout
         self.layout_algorithm = ForceDirectedLayout()
         self.enable_layout = False
-        self.parser = None
+        self.parser = ProcessAlgebraParser()  # Create a parser instance
         self.node_being_dragged = False
-        self.node_drag_type = None
-        self.node_drag_id = None
+        
+        # Create Petri net selector
+        self.selector_window = PetriNetSelectorWindow()
         
         # Set up animation timer
         self.animation_timer = QTimer(self)
         self.animation_timer.setInterval(50)  # 20 fps
         
         # Connect signals
+        self.select_button.clicked.connect(self.show_selector)
+        self.back_button.clicked.connect(self.show_selection_screen)
         self.zoom_in_button.clicked.connect(self.zoom_in)
         self.zoom_out_button.clicked.connect(self.zoom_out)
         self.reset_view_button.clicked.connect(self.reset_view)
         self.enable_layout_checkbox.stateChanged.connect(self.toggle_layout)
         self.apply_layout_button.clicked.connect(self.run_full_layout)
         self.animation_timer.timeout.connect(self.update_layout_step)
+        self.selector_window.net_selected.connect(self.on_petri_net_selected)
         
         # Allow mouse wheel zooming
         self.view.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.view.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
     
-    def update_petri_net(self, parser):
+    def show_selector(self):
+        """Show the Petri net selector window"""
+        self.selector_window.show_selector()
+    
+    def show_selection_screen(self):
+        """Show the initial selection screen"""
+        self.animation_timer.stop()
+        self.view_widget.setVisible(False)
+        self.selection_label.setVisible(True)
+        self.select_button.setVisible(True)
+    
+    def show_visualization_screen(self):
+        """Show the visualization screen"""
+        self.selection_label.setVisible(False)
+        self.select_button.setVisible(False)
+        self.view_widget.setVisible(True)
+    #####
+    def on_petri_net_selected(self, expression):
+        """Handle selection of a Petri net from the selector"""
+        print(f"Selected Petri net: {expression}")
+        
+        # Parse the expression
+        success = self.parser.parse(expression)
+        
+        if success:
+            # Update the window title with the selected expression (shortened)
+            display_expr = expression.split('\n')[0]
+            if len(display_expr) > 40:
+                display_expr = display_expr[:37] + "..."
+            self.setWindowTitle(f"Petri Net: {display_expr}")
+            
+            # Update the visualization
+            self.update_petri_net(self.parser)
+            
+            # Show the visualization screen
+            self.show_visualization_screen()
+            
+            # Important: share the parsed process definitions with the selector
+            # This ensures that the selector can show the named processes from the parser
+            self.selector_window.parser = self.parser
+        else:
+            QMessageBox.warning(self, "Parsing Error", 
+                            "Could not parse the selected process algebra expression.")
+
+    
+    
+    def update_petri_net(self, parser, file_path=None):
         """Update the Petri net visualization with the parser data"""
-        self.parser = parser
+        # Make sure we're using the correct scene type
+        if not isinstance(self.scene, DraggableScene) and not isinstance(self.scene, PetriNetScene):
+            print("Warning: Scene is not a PetriNetScene or DraggableScene instance")
+            self.scene = DraggableScene(self)
+            self.view.setScene(self.scene)
+        
+        # Clear and draw the Petri net
         self.scene.clear_and_draw_petri_net(parser)
+        
+        # Reset view to show all elements
         self.reset_view()
         
-        # Start the layout animation if enabled
+        # Start layout animation if enabled
         if self.enable_layout:
+            self.layout_algorithm.initialize_layout(parser)
             self.animation_timer.start()
     
     def update_layout_parameters(self, params):
-        """Update the layout algorithm parameters"""
+        """Update the layout algorithm parameters from settings window"""
+        print(f"Received new layout parameters: {params}")
+        
+        # Update the algorithm with new parameters
         self.layout_algorithm.set_parameters(params)
+        
+        # If layout is enabled, immediately apply the new settings
+        if self.enable_layout and self.parser:
+            # When parameters change, reinitialize the layout with new settings
+            self.layout_algorithm.initialize_layout(self.parser)
     
     def toggle_layout(self, state):
         """Toggle the force-directed layout animation"""
@@ -396,23 +198,8 @@ class PetriNetWindow(QMainWindow):
             # Update layout for a single iteration
             self.layout_algorithm.update_single_iteration(self.parser)
             
-            # Redraw the scene
-            self.update_node_positions()
+            # Redraw the scene to reflect the updated positions
             self.scene.clear_and_draw_petri_net(self.parser)
-    
-    def update_node_positions(self):
-        """Update the UI node positions from the parser data"""
-        for place in self.parser.places:
-            if place['id'] in self.scene.place_items:
-                item = self.scene.place_items[place['id']]
-                item.setPos(place['x'] - self.scene.place_radius, 
-                            place['y'] - self.scene.place_radius)
-        
-        for transition in self.parser.transitions:
-            if transition['id'] in self.scene.transition_items:
-                item = self.scene.transition_items[transition['id']]
-                item.setPos(transition['x'] - self.scene.transition_width / 2, 
-                            transition['y'] - self.scene.transition_height / 2)
     
     def update_arcs(self):
         """Redraw arcs to match current node positions"""
@@ -421,20 +208,21 @@ class PetriNetWindow(QMainWindow):
             for place_id, item in self.scene.place_items.items():
                 for place in self.parser.places:
                     if place['id'] == place_id:
-                        place['x'] = item.scenePos().x() + self.scene.place_radius
-                        place['y'] = item.scenePos().y() + self.scene.place_radius
+                        center = item.sceneBoundingRect().center()
+                        place['x'] = center.x()
+                        place['y'] = center.y()
                         break
             
             for transition_id, item in self.scene.transition_items.items():
                 for transition in self.parser.transitions:
                     if transition['id'] == transition_id:
-                        transition['x'] = item.scenePos().x() + self.scene.transition_width / 2
-                        transition['y'] = item.scenePos().y() + self.scene.transition_height / 2
+                        center = item.sceneBoundingRect().center()
+                        transition['x'] = center.x()
+                        transition['y'] = center.y()
                         break
             
-            # Just redraw the arcs portion
-            self.scene.clear()
-            self.scene.clear_and_draw_petri_net(self.parser)
+            # Redraw the arcs
+            self.scene.draw_arcs(self.parser)
     
     def run_full_layout(self):
         """Run the full layout algorithm and redraw"""
@@ -449,8 +237,6 @@ class PetriNetWindow(QMainWindow):
     def start_node_drag(self, node_type, node_id):
         """Handle the start of node dragging"""
         self.node_being_dragged = True
-        self.node_drag_type = node_type
-        self.node_drag_id = node_id
         
         # Pause the layout algorithm during drag
         self.animation_timer.stop()
@@ -463,7 +249,7 @@ class PetriNetWindow(QMainWindow):
                     break
         else:
             for transition in self.parser.transitions:
-                if transition['id'] == node_id:
+                if transition['id'] == transition_id:
                     transition['fixed'] = not self.enable_layout
                     break
     
@@ -474,19 +260,26 @@ class PetriNetWindow(QMainWindow):
         # Update the node position from the graphics item
         if node_type == 'place' and node_id in self.scene.place_items:
             item = self.scene.place_items[node_id]
+            center = item.sceneBoundingRect().center()
+            
             for place in self.parser.places:
                 if place['id'] == node_id:
-                    place['x'] = item.scenePos().x() + self.scene.place_radius
-                    place['y'] = item.scenePos().y() + self.scene.place_radius
+                    place['x'] = center.x()
+                    place['y'] = center.y()
                     break
         
         elif node_type == 'transition' and node_id in self.scene.transition_items:
             item = self.scene.transition_items[node_id]
+            center = item.sceneBoundingRect().center()
+            
             for transition in self.parser.transitions:
                 if transition['id'] == node_id:
-                    transition['x'] = item.scenePos().x() + self.scene.transition_width / 2
-                    transition['y'] = item.scenePos().y() + self.scene.transition_height / 2
+                    transition['x'] = center.x()
+                    transition['y'] = center.y()
                     break
+        
+        # Redraw arcs to match updated positions
+        self.update_arcs()
         
         # Resume the layout animation if enabled
         if self.enable_layout:
@@ -501,7 +294,7 @@ class PetriNetWindow(QMainWindow):
         self.view.scale(0.8, 0.8)
     
     def reset_view(self):
-        """Reset the view"""
+        """Reset the view to fit all items"""
         self.view.resetTransform()
         self.view.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
     

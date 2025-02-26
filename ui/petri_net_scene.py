@@ -1,12 +1,14 @@
+# Update this in ui/petri_net_scene.py
+
 import math
 from PyQt5.QtWidgets import (QGraphicsScene, QGraphicsItem, QGraphicsEllipseItem,
                             QGraphicsRectItem, QGraphicsLineItem, QGraphicsTextItem,
-                            QToolTip, QGraphicsSceneMouseEvent)
+                            QToolTip)
 from PyQt5.QtCore import Qt, QPointF, QRectF
-from PyQt5.QtGui import QPen, QBrush, QColor, QTransform, QFont
+from PyQt5.QtGui import QPen, QBrush, QColor, QTransform
 
 class PetriNetScene(QGraphicsScene):
-    """Graphics scene for rendering interactive Petri nets"""
+    """Graphics scene for rendering Petri nets"""
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -16,29 +18,23 @@ class PetriNetScene(QGraphicsScene):
         self.arrow_size = 10
         self.parent_window = parent
         
-        # Keep track of interactive items
-        self.place_items = {}  # Maps place IDs to their QGraphicsItems
-        self.transition_items = {}  # Maps transition IDs to their QGraphicsItems
-        self.text_items = {}  # Maps node IDs to their label items
-        self.token_items = {}  # Maps place IDs to their token items
-        
-        # Drag state tracking
-        self.dragged_item = None
-        self.dragged_item_type = None
-        self.dragged_item_id = None
-        self.drag_start_pos = None
+        # Track items for interaction
+        self.place_items = {}
+        self.transition_items = {}
+        self.arc_items = {}    # Store arc line items for redrawing
+        self.parser = None     # Store reference to parser for arc redrawing
     
     def clear_and_draw_petri_net(self, parser):
-        """Clear the scene and draw the Petri net from the parser data"""
+        """Clear the scene and draw the Petri net from parser data"""
         self.clear()
-        self.place_items.clear()
-        self.transition_items.clear()
-        self.text_items.clear()
-        self.token_items.clear()
+        self.place_items = {}
+        self.transition_items = {}
+        self.arc_items = {}
+        self.parser = parser   # Store reference to parser
         
         # Draw places (circles)
         for place in parser.places:
-            # Create the place circle
+            # Create place circle
             ellipse = QGraphicsEllipseItem(
                 place['x'] - self.place_radius, 
                 place['y'] - self.place_radius,
@@ -47,14 +43,11 @@ class PetriNetScene(QGraphicsScene):
             )
             ellipse.setPen(QPen(Qt.black, 2))
             ellipse.setBrush(QBrush(QColor(240, 240, 255)))
-            
-            # Make it interactive
             ellipse.setFlag(QGraphicsItem.ItemIsMovable)
             ellipse.setFlag(QGraphicsItem.ItemIsSelectable)
-            ellipse.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
-            ellipse.setAcceptHoverEvents(True)
+            ellipse.setFlag(QGraphicsItem.ItemSendsGeometryChanges)  # Important for movement tracking
             
-            # Store the place data in the item for easy access
+            # Store reference to the original data
             ellipse.place_data = place
             ellipse.node_type = 'place'
             ellipse.node_id = place['id']
@@ -67,10 +60,9 @@ class PetriNetScene(QGraphicsScene):
             text.setPos(place['x'] - text.boundingRect().width() / 2,
                         place['y'] - self.place_radius - 20)
             self.addItem(text)
-            self.text_items[f"p{place['id']}"] = text
             
-            # Add tokens (black dots)
-            if place['tokens'] > 0:
+            # Add tokens if any
+            if place.get('tokens', 0) > 0:
                 token_radius = 5
                 token = QGraphicsEllipseItem(
                     place['x'] - token_radius,
@@ -81,11 +73,10 @@ class PetriNetScene(QGraphicsScene):
                 token.setPen(QPen(Qt.black, 1))
                 token.setBrush(QBrush(Qt.black))
                 self.addItem(token)
-                self.token_items[place['id']] = token
         
         # Draw transitions (rectangles)
         for transition in parser.transitions:
-            # Create the transition rectangle
+            # Create transition rectangle
             rect = QGraphicsRectItem(
                 transition['x'] - self.transition_width / 2,
                 transition['y'] - self.transition_height / 2,
@@ -94,14 +85,11 @@ class PetriNetScene(QGraphicsScene):
             )
             rect.setPen(QPen(Qt.black, 2))
             rect.setBrush(QBrush(QColor(220, 220, 220)))
-            
-            # Make it interactive
             rect.setFlag(QGraphicsItem.ItemIsMovable)
             rect.setFlag(QGraphicsItem.ItemIsSelectable)
-            rect.setFlag(QGraphicsItem.ItemSendsGeometryChanges)
-            rect.setAcceptHoverEvents(True)
+            rect.setFlag(QGraphicsItem.ItemSendsGeometryChanges)  # Important for movement tracking
             
-            # Store the transition data in the item
+            # Store reference to the original data
             rect.transition_data = transition
             rect.node_type = 'transition'
             rect.node_id = transition['id']
@@ -114,20 +102,46 @@ class PetriNetScene(QGraphicsScene):
             text.setPos(transition['x'] - text.boundingRect().width() / 2,
                        transition['y'] - self.transition_height / 2 - 20)
             self.addItem(text)
-            self.text_items[f"t{transition['id']}"] = text
         
         # Draw arcs (arrows)
         self.draw_arcs(parser)
         
-        # Set scene rect to fit all items with some padding
+        # Set scene rect to fit all items with padding
         self.setSceneRect(self.itemsBoundingRect().adjusted(-50, -50, 50, 50))
+    
+    def itemChange(self, change, value):
+        """Handle changes to items in the scene"""
+        return super().itemChange(change, value)
+    
+    def mousePressEvent(self, event):
+        """Handle mouse press on scene items"""
+        super().mousePressEvent(event)
+    
+    def mouseReleaseEvent(self, event):
+        """Handle mouse release after drag"""
+        # Check if we need to redraw arcs
+        if hasattr(self, 'last_moved_item') and self.last_moved_item:
+            # Redraw all arcs when a node is released
+            self.redraw_arcs()
+            self.last_moved_item = None
+        
+        super().mouseReleaseEvent(event)
     
     def draw_arcs(self, parser):
         """Draw arcs between places and transitions"""
-        for arc in parser.arcs:
+        # Clear any existing arc items
+        for arc_id in self.arc_items:
+            for item in self.arc_items[arc_id]:
+                if item in self.items():
+                    self.removeItem(item)
+        self.arc_items = {}
+        
+        # Draw each arc
+        for i, arc in enumerate(parser.arcs):
             source_id = arc['source_id']
             target_id = arc['target_id']
             
+            # Initialize coordinates
             start_x, start_y = 0, 0
             end_x, end_y = 0, 0
             
@@ -155,6 +169,12 @@ class PetriNetScene(QGraphicsScene):
                         end_x, end_y = place['x'], place['y']
                         break
             
+            # Skip if coordinates not found
+            if start_x == 0 and start_y == 0:
+                continue
+            if end_x == 0 and end_y == 0:
+                continue
+            
             # Calculate direction vector
             dx = end_x - start_x
             dy = end_y - start_y
@@ -178,16 +198,21 @@ class PetriNetScene(QGraphicsScene):
                 end_y -= dy * self.place_radius
             
             # Draw the line
+            arc_id = f"{source_id}_{target_id}"
+            self.arc_items[arc_id] = []
+            
             line = QGraphicsLineItem(start_x, start_y, end_x, end_y)
             line.setPen(QPen(Qt.black, 1.5))
-            line.setZValue(-1)  # Make lines appear below nodes
             self.addItem(line)
+            self.arc_items[arc_id].append(line)
             
             # Draw the arrow head
-            self.draw_arrow_head(end_x, end_y, dx, dy)
+            arrow_items = self.draw_arrow_head(end_x, end_y, dx, dy)
+            self.arc_items[arc_id].extend(arrow_items)
     
     def draw_arrow_head(self, end_x, end_y, dx, dy):
         """Draw arrow head at the end of an arc"""
+        arrow_items = []
         arrow_angle = 25  # degrees
         arrow_length = self.arrow_size
         
@@ -212,201 +237,106 @@ class PetriNetScene(QGraphicsScene):
         arrow2 = QGraphicsLineItem(end_x, end_y, arrow_point2_x, arrow_point2_y)
         arrow1.setPen(QPen(Qt.black, 1.5))
         arrow2.setPen(QPen(Qt.black, 1.5))
-        arrow1.setZValue(-1)  # Make arrow below nodes
-        arrow2.setZValue(-1)
         self.addItem(arrow1)
         self.addItem(arrow2)
+        
+        arrow_items.append(arrow1)
+        arrow_items.append(arrow2)
+        
+        return arrow_items
+    
+    def redraw_arcs(self):
+        """Redraw all arcs after a node has moved"""
+        if not self.parser:
+            return
+        
+        # Update the parser data with current node positions
+        for place_id, item in self.place_items.items():
+            for place in self.parser.places:
+                if place['id'] == place_id:
+                    center = item.sceneBoundingRect().center()
+                    place['x'] = center.x()
+                    place['y'] = center.y()
+                    break
+        
+        for transition_id, item in self.transition_items.items():
+            for transition in self.parser.transitions:
+                if transition['id'] == transition_id:
+                    center = item.sceneBoundingRect().center()
+                    transition['x'] = center.x()
+                    transition['y'] = center.y()
+                    break
+        
+        # Redraw arcs
+        self.draw_arcs(self.parser)
+
+# Now add this to the DraggableScene class or any other derived scene class
+class DraggableScene(PetriNetScene):
+    """Enhanced PetriNetScene with draggable elements and arc redrawing"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.dragged_item = None
+        self.last_position = None
     
     def mousePressEvent(self, event):
-        """Handle mouse press events for dragging nodes"""
+        """Handle mouse press for dragging nodes"""
         item = self.itemAt(event.scenePos(), QTransform())
         
-        if item and hasattr(item, 'node_type'):
-            # Store the selected item for dragging
+        # Store the dragged item if it's a place or transition
+        if hasattr(item, 'node_type'):
             self.dragged_item = item
-            self.dragged_item_type = item.node_type
-            self.dragged_item_id = item.node_id
-            self.drag_start_pos = event.scenePos()
+            self.last_position = event.scenePos()
             
-            # Highlight selected item
-            if self.dragged_item_type == 'place':
-                item.setBrush(QBrush(QColor(255, 255, 150)))  # Yellow highlight
+            # Highlight the selected item
+            if item.node_type == 'place':
+                item.setBrush(QBrush(QColor(255, 255, 150)))
             else:
-                item.setBrush(QBrush(QColor(255, 220, 150)))  # Orange highlight
+                item.setBrush(QBrush(QColor(255, 220, 150)))
             
-            # Display tooltip with node information
-            if self.dragged_item_type == 'place':
-                place = item.place_data
-                tooltip = f"<b>Place: {place['name']}</b><br>"
-                tooltip += f"ID: {place['id']}<br>"
-                tooltip += f"Tokens: {place['tokens']}<br>"
-                tooltip += f"Position: ({place['x']:.1f}, {place['y']:.1f})"
-            else:
-                transition = item.transition_data
-                tooltip = f"<b>Transition: {transition['name']}</b><br>"
-                tooltip += f"ID: {transition['id']}<br>"
-                tooltip += f"Position: ({transition['x']:.1f}, {transition['y']:.1f})"
-            
-            QToolTip.showText(event.screenPos(), tooltip)
-            
-            # If parent window has a drag handler, notify it
+            # Notify parent window if needed
             if self.parent_window and hasattr(self.parent_window, 'start_node_drag'):
-                self.parent_window.start_node_drag(self.dragged_item_type, self.dragged_item_id)
+                self.parent_window.start_node_drag(item.node_type, item.node_id)
         
-        # Handle the event using the normal mechanism
         super().mousePressEvent(event)
     
-    def mouseReleaseEvent(self, event):
-        """Handle mouse release events after dragging"""
-        if self.dragged_item:
-            # Update the data model with the new position
-            if self.dragged_item_type == 'place':
-                place_data = self.dragged_item.place_data
-                # Center position is offset from top-left by radius
-                place_data['x'] = self.dragged_item.scenePos().x() + self.place_radius
-                place_data['y'] = self.dragged_item.scenePos().y() + self.place_radius
-                
-                # Reset the highlight
-                self.dragged_item.setBrush(QBrush(QColor(240, 240, 255)))
-                
-            elif self.dragged_item_type == 'transition':
-                transition_data = self.dragged_item.transition_data
-                # Center position is offset from top-left by half width/height
-                transition_data['x'] = self.dragged_item.scenePos().x() + self.transition_width / 2
-                transition_data['y'] = self.dragged_item.scenePos().y() + self.transition_height / 2
-                
-                # Reset the highlight
-                self.dragged_item.setBrush(QBrush(QColor(220, 220, 220)))
-            
-            # Also update the position of the label
-            if self.dragged_item_type == 'place':
-                text_item = self.text_items.get(f"p{self.dragged_item_id}")
-                if text_item:
-                    text_item.setPos(
-                        self.dragged_item.place_data['x'] - text_item.boundingRect().width() / 2,
-                        self.dragged_item.place_data['y'] - self.place_radius - 20
-                    )
-                
-                # Update token position if any
-                token_item = self.token_items.get(self.dragged_item_id)
-                if token_item:
-                    token_radius = 5
-                    token_item.setPos(
-                        self.dragged_item.place_data['x'] - token_radius,
-                        self.dragged_item.place_data['y'] - token_radius
-                    )
-            
-            elif self.dragged_item_type == 'transition':
-                text_item = self.text_items.get(f"t{self.dragged_item_id}")
-                if text_item:
-                    text_item.setPos(
-                        self.dragged_item.transition_data['x'] - text_item.boundingRect().width() / 2,
-                        self.dragged_item.transition_data['y'] - self.transition_height / 2 - 20
-                    )
-            
-            # Notify parent window that dragging has ended
-            if self.parent_window and hasattr(self.parent_window, 'end_node_drag'):
-                self.parent_window.end_node_drag(self.dragged_item_type, self.dragged_item_id)
-                
-                # Request a redraw of arcs to match new node positions
-                if hasattr(self.parent_window, 'update_arcs'):
-                    self.parent_window.update_arcs()
-            
-            # Clear the dragging state
-            self.dragged_item = None
-            self.dragged_item_type = None
-            self.dragged_item_id = None
-            self.drag_start_pos = None
-        
-        # Handle the event using the normal mechanism
-        super().mouseReleaseEvent(event)
-    
     def mouseMoveEvent(self, event):
-        """Handle mouse move events during dragging"""
-        # First, let the parent class handle the actual movement
+        """Handle mouse movement during dragging"""
+        # Let Qt handle the actual movement
         super().mouseMoveEvent(event)
         
-        # Then update any labels or tokens that should move with nodes
-        if self.dragged_item and self.drag_start_pos:
-            # Update tooltip position
-            if self.dragged_item_type == 'place':
-                place_data = self.dragged_item.place_data
-                tooltip = f"<b>Place: {place_data['name']}</b><br>"
-                tooltip += f"ID: {place_data['id']}<br>"
-                tooltip += f"Tokens: {place_data['tokens']}<br>"
-                tooltip += f"Position: ({place_data['x']:.1f}, {place_data['y']:.1f})"
-            else:
-                transition_data = self.dragged_item.transition_data
-                tooltip = f"<b>Transition: {transition_data['name']}</b><br>"
-                tooltip += f"ID: {transition_data['id']}<br>"
-                tooltip += f"Position: ({transition_data['x']:.1f}, {transition_data['y']:.1f})"
-            
-            QToolTip.showText(event.screenPos(), tooltip)
+        # Store the last moved item for redrawing arcs
+        if self.dragged_item:
+            self.last_moved_item = self.dragged_item
     
-    def hoverEnterEvent(self, event):
-        """Show tooltip when hovering over nodes"""
-        item = self.itemAt(event.scenePos(), QTransform())
-        
-        if item and hasattr(item, 'node_type'):
-            if item.node_type == 'place':
-                place_data = item.place_data
-                tooltip = f"<b>Place: {place_data['name']}</b><br>"
-                tooltip += f"ID: {place_data['id']}<br>"
-                tooltip += f"Tokens: {place_data['tokens']}"
+    def mouseReleaseEvent(self, event):
+        """Handle mouse release after dragging"""
+        if self.dragged_item:
+            # Reset highlight
+            if self.dragged_item.node_type == 'place':
+                self.dragged_item.setBrush(QBrush(QColor(240, 240, 255)))
             else:
-                transition_data = item.transition_data
-                tooltip = f"<b>Transition: {transition_data['name']}</b><br>"
-                tooltip += f"ID: {transition_data['id']}"
+                self.dragged_item.setBrush(QBrush(QColor(220, 220, 220)))
             
-            QToolTip.showText(event.screenPos(), tooltip)
+            # Update the data model with new position
+            if self.dragged_item.node_type == 'place':
+                center = self.dragged_item.sceneBoundingRect().center()
+                self.dragged_item.place_data['x'] = center.x()
+                self.dragged_item.place_data['y'] = center.y()
+            else:
+                center = self.dragged_item.sceneBoundingRect().center()
+                self.dragged_item.transition_data['x'] = center.x()
+                self.dragged_item.transition_data['y'] = center.y()
             
-        super().hoverEnterEvent(event)
-    
-    def update_node_positions(self, parser):
-        """Update graphics items positions based on the parser data model"""
-        # Update places
-        for place in parser.places:
-            place_item = self.place_items.get(place['id'])
-            if place_item:
-                place_item.setPos(
-                    place['x'] - self.place_radius,
-                    place['y'] - self.place_radius
-                )
-                
-                # Update the associated text label
-                text_item = self.text_items.get(f"p{place['id']}")
-                if text_item:
-                    text_item.setPos(
-                        place['x'] - text_item.boundingRect().width() / 2,
-                        place['y'] - self.place_radius - 20
-                    )
-                
-                # Update token position if any
-                token_item = self.token_items.get(place['id'])
-                if token_item:
-                    token_radius = 5
-                    token_item.setPos(
-                        place['x'] - token_radius,
-                        place['y'] - token_radius
-                    )
+            # Redraw all arcs to update connections
+            self.redraw_arcs()
+            
+            # Notify parent window if needed
+            if self.parent_window and hasattr(self.parent_window, 'end_node_drag'):
+                self.parent_window.end_node_drag(self.dragged_item.node_type, 
+                                                self.dragged_item.node_id)
+            
+            self.dragged_item = None
+            self.last_position = None
         
-        # Update transitions
-        for transition in parser.transitions:
-            transition_item = self.transition_items.get(transition['id'])
-            if transition_item:
-                transition_item.setPos(
-                    transition['x'] - self.transition_width / 2,
-                    transition['y'] - self.transition_height / 2
-                )
-                
-                # Update the associated text label
-                text_item = self.text_items.get(f"t{transition['id']}")
-                if text_item:
-                    text_item.setPos(
-                        transition['x'] - text_item.boundingRect().width() / 2,
-                        transition['y'] - self.transition_height / 2 - 20
-                    )
-        
-        # Redraw arcs to match updated positions
-        self.clear()
-        self.clear_and_draw_petri_net(parser)
+        super().mouseReleaseEvent(event)
