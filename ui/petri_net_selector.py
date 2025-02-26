@@ -147,14 +147,21 @@ class PetriNetSelectorWindow(QMainWindow):
             net_data = item.data(Qt.UserRole)
             self.net_selected.emit(net_data['expression'])
             self.close()
-    
     def on_view_clicked(self):
         """Handle view button click"""
         current_item = self.list_widget.currentItem()
         if current_item and current_item.flags() & Qt.ItemIsSelectable:
             net_data = current_item.data(Qt.UserRole)
+            
+            # Show a message with the selected net name
+            print(f"Selected: {net_data['name']}")
+            
+            # Emit the signal with the expression
             self.net_selected.emit(net_data['expression'])
+            
+            # Close the selector window
             self.close()
+    
     
     def add_custom_net(self, name, description, expression):
         """Add a custom Petri net to the list"""

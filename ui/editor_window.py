@@ -251,30 +251,8 @@ MAIN = P | Q"""
         # Connect the visualize button to show the selector instead of directly visualizing
         self.visualize_button.clicked.connect(self.show_petri_net_selector) 
     #####
-    # def show_petri_net_selector(self):
-    #     """Show the Petri net selector when the visualize button is clicked"""
-    #     # Get the current text from the editor
-    #     text = self.text_edit.toPlainText()
-        
-    #     if text.strip():
-    #         # If there's text in the editor, add it as a custom net
-    #         self.petri_net_window.selector_window.add_custom_net(
-    #             name="Current Editor Content",
-    #             description=text if len(text) < 100 else text[:97] + "...",
-    #             expression=text
-    #         )
-        
-    #     # Show the selector
-    #     self.petri_net_window.show_selector()
-    ####
-    # Update this part in ui/editor_window.py
-
-    #def show_petri_net_selector():
-    #def show_petri_net_selector(self, *args):
-    
-    
-        
-    def show_petri_net_selector():
+  # Locate this method in ui/editor_window.py and replace it with this fixed version
+    def show_petri_net_selector(self):
         """Show the Petri net selector when the visualize button is clicked"""
         # Get the current text from the editor
         text = self.text_edit.toPlainText()
@@ -299,6 +277,15 @@ MAIN = P | Q"""
 
         # Show the selector
         self.petri_net_window.selector_window.show_selector()
+    ####
+    # Update this part in ui/editor_window.py
+
+    #def show_petri_net_selector():
+    #def show_petri_net_selector(self, *args):
+    
+    
+        
+    
         
         def open_load_dialog(self):
             """Open dialog to load a Petri net"""

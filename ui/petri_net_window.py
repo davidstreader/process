@@ -120,6 +120,7 @@ class PetriNetWindow(QMainWindow):
         self.select_button.setVisible(False)
         self.view_widget.setVisible(True)
     #####
+    
     def on_petri_net_selected(self, expression):
         """Handle selection of a Petri net from the selector"""
         print(f"Selected Petri net: {expression}")
@@ -143,11 +144,14 @@ class PetriNetWindow(QMainWindow):
             # Important: share the parsed process definitions with the selector
             # This ensures that the selector can show the named processes from the parser
             self.selector_window.parser = self.parser
+            
+            # Make sure the window is visible and raised
+            self.show()
+            self.raise_()
         else:
             QMessageBox.warning(self, "Parsing Error", 
                             "Could not parse the selected process algebra expression.")
-
-    
+        
     
     def update_petri_net(self, parser, file_path=None):
         """Update the Petri net visualization with the parser data"""
@@ -233,7 +237,6 @@ class PetriNetWindow(QMainWindow):
             # Redraw the scene
             self.scene.clear_and_draw_petri_net(self.parser)
             self.reset_view()
-    
     def start_node_drag(self, node_type, node_id):
         """Handle the start of node dragging"""
         self.node_being_dragged = True
@@ -247,11 +250,12 @@ class PetriNetWindow(QMainWindow):
                 if place['id'] == node_id:
                     place['fixed'] = not self.enable_layout
                     break
-        else:
+        else:  # transition
             for transition in self.parser.transitions:
-                if transition['id'] == transition_id:
+                if transition['id'] == node_id:  # Fixed: was using transition_id incorrectly
                     transition['fixed'] = not self.enable_layout
                     break
+    
     
     def end_node_drag(self, node_type, node_id):
         """Handle the end of node dragging"""
