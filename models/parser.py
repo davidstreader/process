@@ -1,4 +1,4 @@
-# Update this in models/parser.py
+# Updated ProcessAlgebraParser with proper parentheses handling
 
 import re
 import math
@@ -124,9 +124,11 @@ class ProcessAlgebraParser:
             print(traceback.format_exc())
             return False
 
-
     def _parse_expression(self, expr, source_place_id, process_name=None, depth=0, base_y=100):
         """Parse a process algebra expression and build the Petri net structure"""
+        # Remove outer parentheses if present
+        expr = self._remove_outer_parentheses(expr)
+        
         # Handle choice operator (+) first to split the expression
         if '+' in expr and not self._is_in_parentheses(expr, expr.find('+')):
             choices = self._split_by_operator(expr, '+')
@@ -139,14 +141,17 @@ class ProcessAlgebraParser:
         if '.' in expr and not self._is_in_parentheses(expr, expr.find('.')):
             parts = self._split_by_first_operator(expr, '.')
             if len(parts) >= 2:
-                # The first part is an action
-                action = parts[0].strip()
+                # The first part is an action or parenthesized expression
+                first_part = parts[0].strip()
+                
+                # Handle possible parentheses in the first part
+                first_part = self._remove_outer_parentheses(first_part)
                 
                 # Create a transition for this action
                 transition_id = self.get_id()
                 self.transitions.append({
                     'id': transition_id,
-                    'name': action,
+                    'name': first_part,
                     'x': self._get_place_by_id(source_place_id)['x'] + 100,  # Position based on source place
                     'y': base_y,
                     'process': process_name
@@ -183,10 +188,13 @@ class ProcessAlgebraParser:
                     })
                     return
                 
+                # Remove outer parentheses from next_part if present
+                next_part_clean = self._remove_outer_parentheses(next_part)
+                
                 # If this is a direct process reference at the end (like a.b.P)
-                elif next_part in self.process_places and len(parts) == 2:
+                if next_part_clean in self.process_places and len(parts) == 2:
                     # Direct connection back to a process place
-                    target_place_id = self.process_places[next_part]
+                    target_place_id = self.process_places[next_part_clean]
                     
                     # Connect transition directly to the process place
                     self.arcs.append({
@@ -222,6 +230,9 @@ class ProcessAlgebraParser:
         # Handle atomic actions or process references
         expr = expr.strip()
         if expr:
+            # Handle possible parentheses
+            expr = self._remove_outer_parentheses(expr)
+            
             # Special handling for STOP as a standalone expression
             if expr.upper() == "STOP":
                 # Create a terminal STOP place if not already connected to one
@@ -299,7 +310,6 @@ class ProcessAlgebraParser:
                     'target_id': terminal_place_id,
                     'is_place_to_transition': False
                 })
-
    
     def _get_place_by_id(self, place_id):
         """Get a place by its ID"""
@@ -321,6 +331,29 @@ class ProcessAlgebraParser:
                 open_count -= 1
         
         return open_count > 0
+    
+    def _remove_outer_parentheses(self, expr):
+        """Remove outer parentheses from an expression if present"""
+        expr = expr.strip()
+        
+        # Check if the expression is surrounded by parentheses
+        if expr.startswith('(') and expr.endswith(')'):
+            # Verify that these are matching outer parentheses
+            open_count = 0
+            for i, char in enumerate(expr):
+                if char == '(':
+                    open_count += 1
+                elif char == ')':
+                    open_count -= 1
+                    # If we've found the matching closing parenthesis for the first opening one
+                    # and it's the last character, then we can remove the outer parentheses
+                    if open_count == 0 and i == len(expr) - 1:
+                        return expr[1:-1].strip()
+                    # If we close all parentheses before the end, these aren't outer parentheses
+                    if open_count == 0 and i < len(expr) - 1:
+                        return expr
+        
+        return expr
     
     def _split_by_operator(self, expr, operator):
         """Split expression by an operator, respecting parentheses"""
@@ -357,3 +390,27 @@ class ProcessAlgebraParser:
         
         # If no operator found, return the entire expression
         return [expr]
+        
+    def export_to_process_algebra(self):
+        """Export the Petri net back to process algebra code"""
+        # This method would generate process algebra code from the Petri net
+        # It's a placeholder for now and would need to be implemented
+        result = []
+        
+        # Recreate the process definitions
+        for name, _ in self.process_definitions.items():
+            # Find the initial place for this process
+            place_id = self.process_places.get(name)
+            if place_id is not None:
+                # Recreate the process expression
+                expr = self._build_expression_from_place(place_id)
+                if expr:
+                    result.append(f"{name} = {expr}")
+        
+        return "\n".join(result)
+    
+    def _build_expression_from_place(self, place_id):
+        """Build a process algebra expression starting from a place"""
+        # This is a placeholder and would need to be implemented
+        # The idea is to follow the Petri net structure and rebuild the expressions
+        return ""

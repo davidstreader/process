@@ -213,14 +213,15 @@ class TextEditorWindow(QMainWindow):
         example_action.triggered.connect(self.load_example)
         petri_menu.addAction(example_action)
     
+    
+        
     def load_example(self):
         """Load an example process algebra expression"""
-        example = """# Simple Process Algebra Example
-P = a.b.P + c.d.STOP
-Q = e.P + f.g.Q
-MAIN = P | Q"""
-        self.text_edit.setText(example)
-    
+        example = """# Simple Process Algebra Example with Brackets
+    Process = (action.behavior).Process + choice.(done.STOP)
+    Query = event.(Process) + (function.going).Query
+    Main = (Process) | (Query)"""
+        self.text_edit.setText(example)    
 
     def open_save_dialog(self):
         """Open dialog to save current Petri net"""
@@ -252,6 +253,9 @@ MAIN = P | Q"""
         self.visualize_button.clicked.connect(self.show_petri_net_selector) 
     #####
   # Locate this method in ui/editor_window.py and replace it with this fixed version
+        
+        ####
+        # Update this part in ui/editor_window.py
     def show_petri_net_selector(self):
         """Show the Petri net selector when the visualize button is clicked"""
         # Get the current text from the editor
@@ -259,14 +263,22 @@ MAIN = P | Q"""
         
         if text.strip():
             # First try to parse the text to get process definitions
-            try:
-                self.parser.parse(text)
-                # Successful parse - update the selector's parser reference
-                self.petri_net_window.selector_window.parser = self.parser
-                # Load the parser definitions into the selector
-                self.petri_net_window.selector_window.load_parser_definitions()
-            except Exception as e:
-                print(f"Parser error (non-critical): {str(e)}")
+            success = self.parser.parse(text)
+            
+            if not success:
+                # Get parsing errors
+                errors = self.parser.get_parsing_errors()
+                error_message = "Unable to parse the process algebra expression:\n\n"
+                for error in errors:
+                    error_message += f"• {error}\n"
+                
+                QMessageBox.warning(self, "Parsing Error", error_message)
+                return
+                
+            # Successful parse - update the selector's parser reference
+            self.petri_net_window.selector_window.parser = self.parser
+            # Load the parser definitions into the selector
+            self.petri_net_window.selector_window.load_parser_definitions()
             
             # Add the current editor content as a custom net
             self.petri_net_window.selector_window.add_custom_net(
@@ -275,13 +287,12 @@ MAIN = P | Q"""
                 expression=text
             )
 
-        # Show the selector
-        self.petri_net_window.selector_window.show_selector()
-    ####
-    # Update this part in ui/editor_window.py
-
-    #def show_petri_net_selector():
-    #def show_petri_net_selector(self, *args):
+            # Show the selector
+            self.petri_net_window.selector_window.show_selector()
+        else:
+            QMessageBox.information(self, "Empty Input", "Please enter a process algebra expression first.")
+        #def show_petri_net_selector():
+        #def show_petri_net_selector(self, *args):
     
     
         

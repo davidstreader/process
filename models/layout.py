@@ -105,7 +105,7 @@ class ForceDirectedLayout:
         self._update_positions(parser, forces, self.temperature)
     
     def _calculate_forces(self, parser):
-        """Calculate forces for each node based on spring-embedder model"""
+        """Calculate forces for each node based on simplified model"""
         forces = {}
         
         # Initialize forces for all nodes
@@ -126,28 +126,22 @@ class ForceDirectedLayout:
                 # Avoid division by zero
                 distance = max(0.1, math.sqrt(dx*dx + dy*dy))
                 
-                # Use min_distance parameter from settings
-                min_distance = self.min_distance
+                # Repulsive force inversely proportional to distance squared
+                force = self.repulsion_constant / (distance * distance)
                 
-                # Repulsive force inversely proportional to distance
-                # Important: Use the min_distance from settings
-                if distance < min_distance * 100:  # Increased range for repulsion
-                    # Use repulsion_constant from settings
-                    force = 10*self.repulsion_constant / (distance * distance)
-                    
-                    # Normalize direction
-                  #  if distance > 0:
-                  #      dx /= distance
-                  #      dy /= distance
-                    
-                    # Apply the force to both nodes in opposite directions
-                    if not node1.get('fixed', False):
-                        forces[id1]['x'] += dx * force
-                        forces[id1]['y'] += dy * force
-                    
-                    if not node2.get('fixed', False):
-                        forces[id2]['x'] -= dx * force
-                        forces[id2]['y'] -= dy * force
+                # Normalize direction
+                if distance > 0:
+                    dx /= distance
+                    dy /= distance
+                
+                # Apply the force to both nodes in opposite directions
+                if not node1.get('fixed', False):
+                    forces[id1]['x'] += dx * force
+                    forces[id1]['y'] += dy * force
+                
+                if not node2.get('fixed', False):
+                    forces[id2]['x'] -= dx * force
+                    forces[id2]['y'] -= dy * force
         
         # Calculate attractive forces along the arcs
         for arc in parser.arcs:
@@ -194,10 +188,8 @@ class ForceDirectedLayout:
                 # Avoid division by zero
                 distance = max(0.1, math.sqrt(dx*dx + dy*dy))
                 
-                # Use min_distance and spring_constant from settings
-                ideal_dist = self.min_distance * 1.5
-              #  force = self.spring_constant * math.log(distance / ideal_dist + 10) * distance
-                force = self.spring_constant * math.log(distance / ideal_dist + 10) * distance
+                # Attractive force proportional to distance
+                force = self.spring_constant * distance
                 
                 # Normalize direction
                 if distance > 0:
@@ -212,35 +204,6 @@ class ForceDirectedLayout:
                 if not target.get('fixed', False):
                     forces[f"{target_type}{target['id']}"]["x"] += dx * force
                     forces[f"{target_type}{target['id']}"]["y"] += dy * force
-        
-        # Add a slight gravity toward the center to prevent disconnected nodes from drifting away
-        center_x, center_y = 400, 300  # Assuming a standard canvas size
-        gravity = 0.02 * self.temperature  # Scale gravity with temperature
-        
-        for node_id, force in forces.items():
-            # Find the corresponding node
-            node = None
-            if node_id.startswith('p'):
-                node_id_num = int(node_id[1:])
-                for place in parser.places:
-                    if place['id'] == node_id_num:
-                        node = place
-                        break
-            else:
-                node_id_num = int(node_id[1:])
-                for transition in parser.transitions:
-                    if transition['id'] == node_id_num:
-                        node = transition
-                        break
-            
-            if node and not node.get('fixed', False):
-                dx = center_x - node['x']
-                dy = center_y - node['y']
-                distance = max(0.1, math.sqrt(dx*dx + dy*dy))
-                
-                # Normalize and apply gravity force
-                force['x'] += dx / distance * gravity * distance
-                force['y'] += dy / distance * gravity * distance
         
         return forces
     

@@ -62,33 +62,71 @@ class PetriNetSelectorWindow(QMainWindow):
         self.parser = ProcessAlgebraParser()
         
         # Sample Petri nets list
+        self.available_nets = []
+        # Sample Petri nets list
         self.available_nets = [
             {
                 'name': 'Simple Cycle',
-                'description': 'P = a.b.P',
-                'expression': 'P = a.b.P'
+                'description': 'Process = action.behavior.Process',
+                'expression': 'Process = action.behavior.Process'
             },
             {
                 'name': 'Choice Process',
-                'description': 'P = a.P + b.STOP',
-                'expression': 'P = a.P + b.STOP'
+                'description': 'Process = action.Process + behavior.STOP',
+                'expression': 'Process = action.Process + behavior.STOP'
             },
             {
                 'name': 'Ping-Pong Processes',
-                'description': 'P = ping.Q\nQ = pong.P',
-                'expression': 'P = ping.Q\nQ = pong.P'
+                'description': 'Ping = ping.Pong\nPong = pong.Ping',
+                'expression': 'Ping = ping.Pong\nPong = pong.Ping'
             },
             {
                 'name': 'Complex Cycle',
-                'description': 'P = a.b.P + c.Q\nQ = d.e.P + f.Q',
-                'expression': 'P = a.b.P + c.Q\nQ = d.e.P + f.Q'
+                'description': 'Process = action.behavior.Process + choice.Query\nQuery = decide.execute.Process + follow.Query',
+                'expression': 'Process = action.behavior.Process + choice.Query\nQuery = decide.execute.Process + follow.Query'
+            },
+            {
+                'name': 'Bracketed Example',
+                'description': 'Process = (action.behavior).Process + (choice.done).STOP',
+                'expression': 'Process = (action.behavior).Process + (choice.done).STOP'
             },
             {
                 'name': 'Producer-Consumer',
                 'description': 'Producer = produce.send.Producer\nConsumer = receive.consume.Consumer\nSystem = Producer | Consumer',
                 'expression': 'Producer = produce.send.Producer\nConsumer = receive.consume.Consumer\nSystem = Producer | Consumer'
+            },
+            {
+                'name': 'Nested Brackets',
+                'description': 'Process = (action.(behavior.next)).Process + choice.(done.(exit.STOP))',
+                'expression': 'Process = (action.(behavior.next)).Process + choice.(done.(exit.STOP))'
             }
         ]
+        #     {
+        #         'name': 'Simple Cycle',
+        #         'description': 'P = a.b.P',
+        #         'expression': 'P = a.b.P'
+        #     },
+        #     {
+        #         'name': 'Choice Process',
+        #         'description': 'P = a.P + b.STOP',
+        #         'expression': 'P = a.P + b.STOP'
+        #     },
+        #     {
+        #         'name': 'Ping-Pong Processes',
+        #         'description': 'P = ping.Q\nQ = pong.P',
+        #         'expression': 'P = ping.Q\nQ = pong.P'
+        #     },
+        #     {
+        #         'name': 'Complex Cycle',
+        #         'description': 'P = a.b.P + c.Q\nQ = d.e.P + f.Q',
+        #         'expression': 'P = a.b.P + c.Q\nQ = d.e.P + f.Q'
+        #     },
+        #     {
+        #         'name': 'Producer-Consumer',
+        #         'description': 'Producer = produce.send.Producer\nConsumer = receive.consume.Consumer\nSystem = Producer | Consumer',
+        #         'expression': 'Producer = produce.send.Producer\nConsumer = receive.consume.Consumer\nSystem = Producer | Consumer'
+        #     }
+        # ]
         
         # List to store named Petri nets from parser
         self.parser_nets = []

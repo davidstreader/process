@@ -23,13 +23,13 @@ class LayoutSettingsWindow(QMainWindow):
         spring_layout = QHBoxLayout()
         spring_layout.addWidget(QLabel("Spring Constant:"))
         self.spring_slider = QSlider(Qt.Horizontal)
-        self.spring_slider.setRange(10, 1000)
-        self.spring_slider.setValue(10)  # Default value of 0.1
+        self.spring_slider.setRange(1, 100)
+        self.spring_slider.setValue(1)  # Default value of 0.1
         spring_layout.addWidget(self.spring_slider)
         self.spring_spin = QDoubleSpinBox()
-        self.spring_spin.setRange(0.01, 1.0)
-        self.spring_spin.setSingleStep(0.01)
-        self.spring_spin.setValue(0.1)
+        self.spring_spin.setRange(1, 100)
+        self.spring_spin.setSingleStep(1)
+        self.spring_spin.setValue(1)
         spring_layout.addWidget(self.spring_spin)
         layout.addLayout(spring_layout)
         
@@ -37,11 +37,11 @@ class LayoutSettingsWindow(QMainWindow):
         repulsion_layout = QHBoxLayout()
         repulsion_layout.addWidget(QLabel("Repulsion Force:"))
         self.repulsion_slider = QSlider(Qt.Horizontal)
-        self.repulsion_slider.setRange(100, 1000)
+        self.repulsion_slider.setRange(100, 10000)
         self.repulsion_slider.setValue(500)  # Default value of 500
         repulsion_layout.addWidget(self.repulsion_slider)
         self.repulsion_spin = QDoubleSpinBox()
-        self.repulsion_spin.setRange(100, 1000)
+        self.repulsion_spin.setRange(100, 10000)
         self.repulsion_spin.setSingleStep(10)
         self.repulsion_spin.setValue(500)
         repulsion_layout.addWidget(self.repulsion_spin)

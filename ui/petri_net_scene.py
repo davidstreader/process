@@ -298,10 +298,7 @@ class DraggableScene(PetriNetScene):
         # Clear tracking dictionaries
         self.node_related_items = {}
         
-        # Call the parent implementation
-        super().clear_and_draw_petri_net(parser)
-        
-        # Create tracking structures for places
+        # Initialize node_related_items for all places and transitions BEFORE drawing
         for place in parser.places:
             place_id = place['id']
             self.node_related_items[f"p{place_id}"] = {
@@ -309,12 +306,14 @@ class DraggableScene(PetriNetScene):
                 "tokens": []
             }
         
-        # Create tracking structures for transitions
         for transition in parser.transitions:
             transition_id = transition['id']
             self.node_related_items[f"t{transition_id}"] = {
                 "labels": []
             }
+        
+        # Call the parent implementation after initialization
+        super().clear_and_draw_petri_net(parser)
     
     def draw_place(self, place):
         """Enhanced place drawing to track labels and tokens"""
@@ -330,7 +329,12 @@ class DraggableScene(PetriNetScene):
         self.addItem(text)
         
         # Track the label
-        self.node_related_items[f"p{place['id']}"]["labels"].append(text)
+        place_key = f"p{place['id']}"
+        # Ensure the dictionary entry exists
+        if place_key not in self.node_related_items:
+            self.node_related_items[place_key] = {"labels": [], "tokens": []}
+            
+        self.node_related_items[place_key]["labels"].append(text)
         
         # Add tokens if any
         if place.get('tokens', 0) > 0:
@@ -346,7 +350,7 @@ class DraggableScene(PetriNetScene):
             self.addItem(token)
             
             # Track the token
-            self.node_related_items[f"p{place['id']}"]["tokens"].append(token)
+            self.node_related_items[place_key]["tokens"].append(token)
         
         return ellipse
     
@@ -364,7 +368,12 @@ class DraggableScene(PetriNetScene):
         self.addItem(text)
         
         # Track the label
-        self.node_related_items[f"t{transition['id']}"]["labels"].append(text)
+        transition_key = f"t{transition['id']}"
+        # Ensure the dictionary entry exists
+        if transition_key not in self.node_related_items:
+            self.node_related_items[transition_key] = {"labels": []}
+            
+        self.node_related_items[transition_key]["labels"].append(text)
         
         return rect
     
@@ -505,5 +514,3 @@ class DraggableScene(PetriNetScene):
         rect.node_id = transition['id']
         
         return rect
-    
-
