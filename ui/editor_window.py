@@ -255,7 +255,7 @@ class TextEditorWindow(QMainWindow):
   # Locate this method in ui/editor_window.py and replace it with this fixed version
         
         ####
-        # Update this part in ui/editor_window.py
+        # Calls the parser that builds the Petri nets
     def show_petri_net_selector(self):
         """Show the Petri net selector when the visualize button is clicked"""
         # Get the current text from the editor
@@ -274,7 +274,8 @@ class TextEditorWindow(QMainWindow):
                 
                 QMessageBox.warning(self, "Parsing Error", error_message)
                 return
-                
+            print(f"editorWindow Parser: {self.parser.current_id}")  
+            print(f"editorWindow Parser: {self.parser.transitions}")
             # Successful parse - update the selector's parser reference
             self.petri_net_window.selector_window.parser = self.parser
             # Load the parser definitions into the selector

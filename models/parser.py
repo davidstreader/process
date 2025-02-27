@@ -46,7 +46,7 @@ class ProcessAlgebraParser:
                 lines.append(line.strip())
         
         try:
-            # First pass: register all process definitions
+         # First pass: register all process definitions
             for line in lines:
                 if '=' in line:
                     # Process definition: P = a.b + c.d
@@ -113,18 +113,21 @@ class ProcessAlgebraParser:
                         'target_id': target_place_id,
                         'is_place_to_transition': False
                     })
-            
+            print(f"Parse End self.places: {self.places}")
+            print(f"          self.trans: {self.transitions}")
             return True
         except Exception as e:
             import traceback
             print(f"Parsing error: {str(e)}")
             print(traceback.format_exc())
             return False
+        print(f"Parse End self.places: {self.places}")
+        print(f"Parse End self.transitions: {self.transitions}")
 
     def _parse_expression(self, expr, source_place_id, process_name=None, depth=0, base_y=100):
         """Parse a process algebra expression and build the Petri net structure"""
         # Remove outer parentheses if present
-        print(f"expr: {expr}")
+        print(f"_parse_expression expr: {expr}")
         expr = self._remove_outer_parentheses(expr)
         
         # Handle choice operator (+) first to split the expression
@@ -154,7 +157,7 @@ class ProcessAlgebraParser:
                     'y': base_y,
                     'process': process_name
                 })
-                print(f"build transition: {self.transitions}")
+                #print(f"Built Transitions: {self.transitions}")
                 # Connect source place to this transition
                 self.arcs.append({
                     'source_id': source_place_id,
@@ -225,7 +228,8 @@ class ProcessAlgebraParser:
                     # Process the rest of the expression
                     remaining = '.'.join(parts[1:])
                     self._parse_expression(remaining, next_place_id, process_name, depth + 1, base_y)
-                
+                    print(f"remaining: {remaining}")
+                    #print(f"self.places: {self.places}")
                 return
         
         # Handle atomic actions or process references
@@ -480,7 +484,7 @@ class ProcessAlgebraParser:
                 expr = self._build_expression_from_place(place_id)
                 if expr:
                     result.append(f"{name} = {expr}")
-        
+        print(f"export result: {result}")
         return "\n".join(result)
     
     def _build_expression_from_place(self, place_id):

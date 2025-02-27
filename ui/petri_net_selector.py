@@ -235,11 +235,13 @@ class PetriNetSelectorWindow(QMainWindow):
     
     def load_parser_definitions(self):
         """Load Petri net definitions from the parser"""
+        
         # Clear previous parser nets
         self.parser_nets = []
         
         # Get process definitions from parser
         process_definitions = self.parser.process_definitions
+        print(f"Loading parser definitions...", process_definitions)
         if not process_definitions:
             return
         
@@ -262,7 +264,7 @@ class PetriNetSelectorWindow(QMainWindow):
                     'expression': full_expr
                 }
                 self.parser_nets.append(net)
-                print(f"net: {net}")
+                print(f"in list for display net: {net}")
     
         # Add a special entry for the combined processes if there are multiple
         if len(process_definitions) > 1:
