@@ -247,7 +247,7 @@ class PetriNetSelectorWindow(QMainWindow):
         for name, expr in process_definitions.items():
             # Create a complete expression that can be parsed
             full_expr = f"{name} = {expr}"
-            
+            print(f"full_expr: {full_expr}")
             # Skip duplicates
             duplicate = False
             for net in self.parser_nets:
@@ -262,6 +262,7 @@ class PetriNetSelectorWindow(QMainWindow):
                     'expression': full_expr
                 }
                 self.parser_nets.append(net)
+                print(f"net: {net}")
     
         # Add a special entry for the combined processes if there are multiple
         if len(process_definitions) > 1:

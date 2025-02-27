@@ -65,7 +65,8 @@ class ProcessAlgebraParser:
                         'tokens': 1,  # Start with a token
                         'x': 100,     # Initial x position
                         'y': 100 + len(self.process_places) * 150,  # Position based on number of processes
-                        'is_process': True
+                        'is_process': True,
+                        'process': name
                     })
                     
                     # Map the process name to its place ID
@@ -83,6 +84,7 @@ class ProcessAlgebraParser:
             
             # Process pending recursive connections
             for conn in self.pending_connections:
+                print(f"pending_connection conn: {conn}")
                 source_place_id, target_process_name = conn
                 
                 if target_process_name in self.process_places:
@@ -122,6 +124,7 @@ class ProcessAlgebraParser:
     def _parse_expression(self, expr, source_place_id, process_name=None, depth=0, base_y=100):
         """Parse a process algebra expression and build the Petri net structure"""
         # Remove outer parentheses if present
+        print(f"expr: {expr}")
         expr = self._remove_outer_parentheses(expr)
         
         # Handle choice operator (+) first to split the expression
@@ -151,7 +154,7 @@ class ProcessAlgebraParser:
                     'y': base_y,
                     'process': process_name
                 })
-                
+                print(f"build transition: {self.transitions}")
                 # Connect source place to this transition
                 self.arcs.append({
                     'source_id': source_place_id,
@@ -175,7 +178,8 @@ class ProcessAlgebraParser:
                         'tokens': 0,
                         'x': self._get_place_by_id(source_place_id)['x'] + 200,
                         'y': base_y,
-                        'is_terminal': True
+                        'is_terminal': True,
+                        'process': process_name
                     })
                     
                     # Connect transition to the STOP place
@@ -203,7 +207,8 @@ class ProcessAlgebraParser:
                     next_place_id = self.get_id()
                     self.places.append({
                         'id': next_place_id,
-                        'name': f"p{next_place_id}",
+                        #'name': f"p{next_place_id}",
+                        'name': f"",
                         'tokens': 0,
                         'x': self._get_place_by_id(source_place_id)['x'] + 200,  # Position based on source place
                         'y': base_y,
@@ -228,7 +233,8 @@ class ProcessAlgebraParser:
         if expr:
             # Handle possible parentheses
             expr = self._remove_outer_parentheses(expr)
-            
+            print(f"HOPEFULL expr: {expr}") 
+            print(f"{self.process_places}")
             # Special handling for STOP as a standalone expression
             if expr.upper() == "STOP":
                 # Create a terminal STOP place if not already connected to one
@@ -239,7 +245,8 @@ class ProcessAlgebraParser:
                     'tokens': 0,
                     'x': self._get_place_by_id(source_place_id)['x'] + 100,
                     'y': base_y,
-                    'is_terminal': True
+                    'is_terminal': True,
+                    'pcess': process_name
                 })
                 
                 # Create a transition to the STOP place
@@ -269,6 +276,9 @@ class ProcessAlgebraParser:
             
             # Check if this is a reference to a defined process
             elif expr in self.process_places:
+                # now copy the places and transitions from expr process to 
+                # the current process
+                print(f"HOPE expr: {expr}")
                 # Create a transition to the process place
                 transition_id = self.get_id()
                 self.transitions.append({
@@ -316,7 +326,7 @@ class ProcessAlgebraParser:
                 terminal_place_id = self.get_id()
                 self.places.append({
                     'id': terminal_place_id,
-                    'name': "STOP" if expr.upper() == "STOP" else f"p{terminal_place_id}",
+                    'name': "STOP" if expr.upper() == "STOP" else f"",
                     'tokens': 0,
                     'x': self._get_place_by_id(source_place_id)['x'] + 200,
                     'y': base_y,

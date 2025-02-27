@@ -35,10 +35,12 @@ class PetriNetScene(QGraphicsScene):
         # Draw places (circles)
         for place in parser.places:
             self.draw_place(place)
+            print(f"place: {place}")
         
         # Draw transitions (rectangles)
         for transition in parser.transitions:
             self.draw_transition(transition)
+            print(f"transition: {transition}")
         
         # Draw arcs (arrows)
         self.draw_arcs(parser)
