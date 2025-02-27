@@ -42,18 +42,28 @@ class FileManager:
         self._save_config()
     
     def save_petri_net(self, parser, filename):
-        """Save a Petri net to a JSON file"""
+        """Save a Petri net and parse tree to a JSON file"""
         if not filename.endswith('.json'):
             filename += '.json'
         
         # Ensure path is within the nets directory
         file_path = self.nets_dir / filename
         
+        # Create expanded process definitions by replacing process references
+        expanded_definitions = self._expand_process_definitions(parser.process_definitions)
+        
         # Convert parser data to serializable format
         data = {
             'places': parser.places,
             'transitions': parser.transitions,
-            'arcs': parser.arcs
+            'arcs': parser.arcs,
+            'parse_tree': {
+                'process_definitions': parser.process_definitions,
+                'expanded_definitions': expanded_definitions,
+                'process_places': parser.process_places,
+                'current_id': parser.current_id
+            },
+            'source_code': self._generate_source_code(parser)
         }
         
         # Save to file
@@ -64,6 +74,53 @@ class FileManager:
         self.set_last_net(str(file_path))
         
         return str(file_path)
+    
+    def _expand_process_definitions(self, process_definitions):
+        """Create expanded process definitions by replacing references"""
+        expanded = process_definitions.copy()
+        
+        # Track which definitions have been processed to avoid infinite recursion
+        processed = set()
+        
+        def expand_definition(name, depth=0):
+            """Recursively expand a single definition"""
+            if name in processed or depth > 10:  # Prevent infinite recursion
+                return expanded[name]
+                
+            processed.add(name)
+            definition = expanded[name]
+            
+            # Find all process references in this definition
+            for other_name in process_definitions:
+                if other_name != name:  # Avoid self-replacement
+                    # Replace only whole-word matches (not parts of identifiers)
+                    import re
+                    pattern = r'\b' + re.escape(other_name) + r'\b'
+                    
+                    # Check if we have a match
+                    if re.search(pattern, definition):
+                        # Get the expanded definition for the reference
+                        other_expanded = expand_definition(other_name, depth + 1)
+                        
+                        # Replace references with expanded definition
+                        definition = re.sub(pattern, f"({other_expanded})", definition)
+            
+            # Update the expanded dictionary
+            expanded[name] = definition
+            return definition
+        
+        # Process each definition
+        for name in process_definitions:
+            expand_definition(name)
+            
+        return expanded
+        
+    def _generate_source_code(self, parser):
+        """Generate process algebra source code from the parser"""
+        source_code = []
+        for process_name, definition in parser.process_definitions.items():
+            source_code.append(f"{process_name} = {definition}")
+        return "\n".join(source_code)
     
     def load_petri_net(self, file_path):
         """Load a Petri net from a JSON file"""

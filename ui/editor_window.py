@@ -313,45 +313,63 @@ class TextEditorWindow(QMainWindow):
                 path = dialog.get_selected_path()
                 if path:
                     self.load_petri_net_from_file(path)
-        
-        def load_petri_net_from_file(self, file_path):
-            """Load a Petri net from a file"""
-            data = self.file_manager.load_petri_net(file_path)
-            if data:
-                try:
-                    # Update parser with loaded data
-                    self.parser.reset()
-                    self.parser.places = data['places']
-                    self.parser.transitions = data['transitions']
-                    self.parser.arcs = data['arcs']
+
+
+    def load_petri_net_from_file(self, file_path):
+        """Load a Petri net from a file"""
+        data = self.file_manager.load_petri_net(file_path)
+        if data:
+            try:
+                # Update parser with loaded data
+                self.parser.reset()
+                self.parser.places = data['places']
+                self.parser.transitions = data['transitions']
+                self.parser.arcs = data['arcs']
+                
+                # Load parse tree if available
+                if 'parse_tree' in data:
+                    # Load process definitions - prioritize expanded if available
+                    if 'expanded_definitions' in data['parse_tree']:
+                        self.parser.process_definitions = data['parse_tree']['expanded_definitions']
+                    else:
+                        self.parser.process_definitions = data['parse_tree'].get('process_definitions', {})
                     
+                    self.parser.process_places = data['parse_tree'].get('process_places', {})
+                    self.parser.current_id = data['parse_tree'].get('current_id', len(self.parser.places) + len(self.parser.transitions))
+                else:
                     # Set correct current_id
                     max_place_id = max([p['id'] for p in self.parser.places]) if self.parser.places else -1
                     max_trans_id = max([t['id'] for t in self.parser.transitions]) if self.parser.transitions else -1
                     self.parser.current_id = max(max_place_id, max_trans_id) + 1
-                    
-                    # Update the Petri net window
-                    if self.petri_net_window:
-                        self.petri_net_window.update_petri_net(self.parser)
-                        self.petri_net_window.show()
-                        self.petri_net_window.raise_()
-                    
-                    # Show success message
-                    QMessageBox.information(self, "Load Successful", f"Petri net loaded from '{os.path.basename(file_path)}'")
-                    
-                    # Generate process algebra code from the Petri net
+                
+                # Update the Petri net window
+                if self.petri_net_window:
+                    self.petri_net_window.update_petri_net(self.parser, file_path)
+                    self.petri_net_window.show()
+                    self.petri_net_window.raise_()
+                
+                # Show success message
+                QMessageBox.information(self, "Load Successful", f"Petri net loaded from '{os.path.basename(file_path)}'")
+                
+                # Set the source code in the editor if available
+                if 'source_code' in data and data['source_code']:
+                    self.text_edit.setText(data['source_code'])
+                else:
+                    # Try to generate process algebra code from the Petri net
                     try:
                         process_algebra_code = self.parser.export_to_process_algebra()
                         if process_algebra_code:
                             self.text_edit.setText(process_algebra_code)
                     except Exception as e:
                         print(f"Error generating process algebra code: {str(e)}")
-                    
-                except Exception as e:
-                    QMessageBox.critical(self, "Load Error", f"Error loading Petri net: {str(e)}")
-            else:
-                QMessageBox.critical(self, "Load Error", f"Could not load Petri net from '{file_path}'")
-        
+                
+            except Exception as e:
+                QMessageBox.critical(self, "Load Error", f"Error loading Petri net: {str(e)}")
+        else:
+            QMessageBox.critical(self, "Load Error", f"Could not load Petri net from '{file_path}'")
+
+                
+         
     def load_last_net(self):
          """Try to load the last opened Petri net"""
          last_net = self.file_manager.get_last_net()

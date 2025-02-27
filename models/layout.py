@@ -122,7 +122,8 @@ class ForceDirectedLayout:
             for j, (id2, node2) in enumerate(all_nodes[i+1:], i+1):
                 dx = node1['x'] - node2['x']
                 dy = node1['y'] - node2['y']
-                
+                if dy == 0 : dy = 0.1
+                if dx == 0 : dx = 0.1   
                 # Avoid division by zero
                 distance = max(0.1, math.sqrt(dx*dx + dy*dy))
                 
@@ -189,7 +190,7 @@ class ForceDirectedLayout:
                 distance = max(0.1, math.sqrt(dx*dx + dy*dy))
                 
                 # Attractive force proportional to distance
-                force = self.spring_constant * distance
+                force = self.spring_constant * distance / 10
                 
                 # Normalize direction
                 if distance > 0:
