@@ -1,271 +1,163 @@
-# Updated ProcessAlgebraParser with proper parentheses handling
+# Accurate Process Algebra Parser that properly handles process references
 
 import re
 import math
 
 class ProcessAlgebraParser:
-    """Parser for simple process algebra expressions and conversion to Petri nets"""
-    
     def __init__(self):
-        self.places = []
-        self.transitions = []
-        self.arcs = []
-        self.current_id = 0
-        self.process_definitions = {}  # Store process definitions for regeneration
-        self.process_places = {}       # Maps process names to their place IDs
-        self.pending_connections = []  # Store pending recursive connections
-    
-    def reset(self):
-        """Reset all data structures"""
         self.places = []
         self.transitions = []
         self.arcs = []
         self.current_id = 0
         self.process_definitions = {}
         self.process_places = {}
-        self.pending_connections = []
+    
+    def reset(self):
+        self.places = []
+        self.transitions = []
+        self.arcs = []
+        self.current_id = 0
+        self.process_definitions = {}
+        self.process_places = {}
     
     def get_id(self):
-        """Get a unique ID for new elements"""
         self.current_id += 1
         return self.current_id - 1
     
     def parse(self, text):
-        """Parse the process algebra text and convert to Petri net"""
         self.reset()
         
-        # Remove comments and whitespace and split by lines
+        # Remove comments and whitespace
         lines = []
         for line in text.strip().split('\n'):
-            # Remove comments (anything after #)
             if '#' in line:
                 line = line[:line.find('#')]
-            
-            # Skip empty lines
             if line.strip():
                 lines.append(line.strip())
         
         try:
-         # First pass: register all process definitions
+            # First pass: collect all process definitions
             for line in lines:
                 if '=' in line:
-                    # Process definition: P = a.b + c.d
                     name, expr = line.split('=', 1)
                     name = name.strip()
                     expr = expr.strip()
-                    
-                    # Store the process definition
                     self.process_definitions[name] = expr
                     
-                    # Create initial place for the process
-                    initial_place_id = self.get_id()
+                    # Create place for process
+                    place_id = self.get_id()
                     self.places.append({
-                        'id': initial_place_id,
+                        'id': place_id,
                         'name': name,
-                        'tokens': 1,  # Start with a token
-                        'x': 100,     # Initial x position
-                        'y': 100 + len(self.process_places) * 150,  # Position based on number of processes
+                        'tokens': 1,
+                        'x': 100,
+                        'y': 100 + len(self.process_places) * 150,
                         'is_process': True,
                         'process': name
                     })
-                    
-                    # Map the process name to its place ID
-                    self.process_places[name] = initial_place_id
+                    self.process_places[name] = place_id
             
-            # Second pass: parse expressions and build Petri nets
-            process_index = 0
-            for name, expr in self.process_definitions.items():
-                # Get the corresponding place ID
-                initial_place_id = self.process_places[name]
-                
-                # Parse the expression (no pre-expansion)
-                self._parse_expression(expr, initial_place_id, name, 0, 100 + process_index * 150)
-                process_index += 1
+            # Find main processes
+            main_processes = self.find_main_processes()
+            print(f"Main processes: {main_processes}")
             
-            # Process pending recursive connections
-            for conn in self.pending_connections:
-                print(f"pending_connection conn: {conn}")
-                source_place_id, target_process_name = conn
-                
-                if target_process_name in self.process_places:
-                    target_place_id = self.process_places[target_process_name]
-                    
-                    # Create a transition for the connection
-                    transition_id = self.get_id()
-                    self.transitions.append({
-                        'id': transition_id,
-                        'name': f"→{target_process_name}",  # Arrow to indicate recursion
-                        'x': self._get_place_by_id(source_place_id)['x'] + 100,
-                        'y': self._get_place_by_id(source_place_id)['y'],
-                        'is_recursion': True
-                    })
-                    
-                    # Connect source place to this transition
-                    self.arcs.append({
-                        'source_id': source_place_id,
-                        'target_id': transition_id,
-                        'is_place_to_transition': True
-                    })
-                    
-                    # Connect transition to the target process place
-                    self.arcs.append({
-                        'source_id': transition_id,
-                        'target_id': target_place_id,
-                        'is_place_to_transition': False
-                    })
-            print(f"Parse End self.places: {self.places}")
-            print(f"          self.trans: {self.transitions}")
+            # Second pass: create Petri net for main processes only
+            for i, process_name in enumerate(main_processes):
+                if process_name in self.process_places:
+                    self.build_petri_net(process_name, i)
+            
             return True
         except Exception as e:
             import traceback
             print(f"Parsing error: {str(e)}")
             print(traceback.format_exc())
             return False
-        print(f"Parse End self.places: {self.places}")
-        print(f"Parse End self.transitions: {self.transitions}")
-
-    def _parse_expression(self, expr, source_place_id, process_name=None, depth=0, base_y=100):
-        """Parse a process algebra expression and build the Petri net structure"""
-        # Remove outer parentheses if present
-        print(f"_parse_expression expr: {expr}")
-        expr = self._remove_outer_parentheses(expr)
+    
+    def find_main_processes(self):
+        """Find processes that don't appear on the right-hand side of other processes"""
+        referenced_processes = set()
         
-        # Handle choice operator (+) first to split the expression
-        if '+' in expr and not self._is_in_parentheses(expr, expr.find('+')):
-            choices = self._split_by_operator(expr, '+')
+        for name, expr in self.process_definitions.items():
+            for other_name in self.process_definitions:
+                if other_name != name:
+                    pattern = r'\b' + re.escape(other_name) + r'\b'
+                    if re.search(pattern, expr):
+                        referenced_processes.add(other_name)
+        
+        main_processes = [name for name in self.process_definitions.keys() 
+                          if name not in referenced_processes]
+        
+        if not main_processes:
+            main_processes = list(self.process_definitions.keys())
+        
+        return main_processes
+    
+    def build_petri_net(self, process_name, index):
+        """Build the Petri net for a process definition"""
+        place_id = self.process_places[process_name]
+        expr = self.process_definitions[process_name]
+        base_y = 100 + index * 150
+        
+        # Process the expression
+        self.parse_expression(expr, place_id, process_name, base_y)
+    
+    def parse_expression(self, expr, place_id, process_name, base_y):
+        """Parse a process algebra expression and build the Petri net"""
+        expr = self.remove_outer_parentheses(expr)
+        
+        # Handle choice operator
+        if '+' in expr and not self.is_in_parentheses(expr, expr.find('+')):
+            choices = self.split_by_operator(expr, '+')
             for i, choice in enumerate(choices):
-                # Create a separate branch for each choice
-                self._parse_expression(choice.strip(), source_place_id, process_name, depth, base_y + i * 80)
-            return
+                self.parse_sequence(choice.strip(), place_id, process_name, base_y + i * 80)
+        else:
+            self.parse_sequence(expr, place_id, process_name, base_y)
+    
+    def parse_sequence(self, sequence, place_id, process_name, y_pos):
+        """Parse a sequence like a.b.P"""
+        sequence = self.remove_outer_parentheses(sequence)
         
-        # Handle sequential composition (.)
-        if '.' in expr and not self._is_in_parentheses(expr, expr.find('.')):
-            parts = self._split_by_first_operator(expr, '.')
-            if len(parts) >= 2:
-                # The first part is an action or parenthesized expression
-                first_part = parts[0].strip()
-                
-                # Handle possible parentheses in the first part
-                first_part = self._remove_outer_parentheses(first_part)
-                
-                # Create a transition for this action
-                transition_id = self.get_id()
-                self.transitions.append({
-                    'id': transition_id,
-                    'name': first_part,
-                    'x': self._get_place_by_id(source_place_id)['x'] + 100,  # Position based on source place
-                    'y': base_y,
-                    'process': process_name
-                })
-                #print(f"Built Transitions: {self.transitions}")
-                # Connect source place to this transition
-                self.arcs.append({
-                    'source_id': source_place_id,
-                    'target_id': transition_id,
-                    'is_place_to_transition': True
-                })
-                
-                # Check if the next part is a process reference or continuation
-                next_part = parts[1].strip()
-                
-                # Remove outer parentheses from next_part if present
-                next_part_clean = self._remove_outer_parentheses(next_part)
-                
-                # Special handling for STOP
-                if next_part_clean.upper() == "STOP":
-                    # Create a terminal STOP place
-                    stop_place_id = self.get_id()
-                    self.places.append({
-                        'id': stop_place_id,
-                        'name': "STOP",
-                        'tokens': 0,
-                        'x': self._get_place_by_id(source_place_id)['x'] + 200,
-                        'y': base_y,
-                        'is_terminal': True,
-                        'process': process_name
-                    })
-                    
-                    # Connect transition to the STOP place
-                    self.arcs.append({
-                        'source_id': transition_id,
-                        'target_id': stop_place_id,
-                        'is_place_to_transition': False
-                    })
-                    return
-                
-                # Check if next_part is a direct process reference (without further sequence)
-                elif next_part_clean in self.process_places:
-                    # Get the target place ID for the process
-                    target_place_id = self.process_places[next_part_clean]
-                    
-                    # Connect transition directly to the process place
-                    self.arcs.append({
-                        'source_id': transition_id,
-                        'target_id': target_place_id,
-                        'is_place_to_transition': False
-                    })
-                    return
-                else:
-                    # Regular continuation with an intermediate place
-                    next_place_id = self.get_id()
-                    self.places.append({
-                        'id': next_place_id,
-                        #'name': f"p{next_place_id}",
-                        'name': f"",
-                        'tokens': 0,
-                        'x': self._get_place_by_id(source_place_id)['x'] + 200,  # Position based on source place
-                        'y': base_y,
-                        'process': process_name
-                    })
-                    
-                    # Connect transition to the new place
-                    self.arcs.append({
-                        'source_id': transition_id,
-                        'target_id': next_place_id,
-                        'is_place_to_transition': False
-                    })
-                    
-                    # Process the rest of the expression
-                    remaining = '.'.join(parts[1:])
-                    self._parse_expression(remaining, next_place_id, process_name, depth + 1, base_y)
-                    print(f"remaining: {remaining}")
-                    #print(f"self.places: {self.places}")
-                return
+        # Split the sequence by dot operator
+        parts = self.split_by_operator(sequence, '.')
         
-        # Handle atomic actions or process references
-        expr = expr.strip()
-        if expr:
-            # Handle possible parentheses
-            expr = self._remove_outer_parentheses(expr)
-            print(f"HOPEFULL expr: {expr}") 
-            print(f"{self.process_places}")
-            # Special handling for STOP as a standalone expression
-            if expr.upper() == "STOP":
-                # Create a terminal STOP place if not already connected to one
+        # Keep track of current place for the sequence
+        current_place_id = place_id
+        x_offset = 0
+        
+        for i, part in enumerate(parts):
+            part = part.strip()
+            part = self.remove_outer_parentheses(part)
+            
+            if not part:
+                continue
+                
+            # Special handling for STOP
+            if part.upper() == 'STOP':
+                # Create STOP place
                 stop_place_id = self.get_id()
                 self.places.append({
                     'id': stop_place_id,
-                    'name': "STOP",
+                    'name': 'STOP',
                     'tokens': 0,
-                    'x': self._get_place_by_id(source_place_id)['x'] + 100,
-                    'y': base_y,
+                    'x': self.get_place_x(current_place_id) + 150 + x_offset,
+                    'y': y_pos,
                     'is_terminal': True,
-                    'pcess': process_name
+                    'process': process_name
                 })
                 
-                # Create a transition to the STOP place
+                # Create silent transition
                 transition_id = self.get_id()
                 self.transitions.append({
                     'id': transition_id,
-                    'name': "τ",  # Silent transition
-                    'x': self._get_place_by_id(source_place_id)['x'] + 50,
-                    'y': base_y,
+                    'name': 'τ',
+                    'x': self.get_place_x(current_place_id) + 75 + x_offset,
+                    'y': y_pos,
                     'is_silent': True
                 })
                 
-                # Connect source place to transition
+                # Connect current place to transition
                 self.arcs.append({
-                    'source_id': source_place_id,
+                    'source_id': current_place_id,
                     'target_id': transition_id,
                     'is_place_to_transition': True
                 })
@@ -276,83 +168,206 @@ class ProcessAlgebraParser:
                     'target_id': stop_place_id,
                     'is_place_to_transition': False
                 })
-                return
+                
+                # Update current place
+                current_place_id = stop_place_id
+                x_offset += 150
+                continue
             
-            # Check if this is a reference to a defined process
-            elif expr in self.process_places:
-                # now copy the places and transitions from expr process to 
-                # the current process
-                print(f"HOPE expr: {expr}")
-                # Create a transition to the process place
-                transition_id = self.get_id()
-                self.transitions.append({
-                    'id': transition_id,
-                    'name': f"→{expr}",  # Arrow to indicate process jump
-                    'x': self._get_place_by_id(source_place_id)['x'] + 50,
-                    'y': base_y,
-                    'is_recursion': True
-                })
-                
-                # Connect source place to transition
-                self.arcs.append({
-                    'source_id': source_place_id,
-                    'target_id': transition_id,
-                    'is_place_to_transition': True
-                })
-                
-                # Connect transition to the target process place
-                target_place_id = self.process_places[expr]
-                self.arcs.append({
-                    'source_id': transition_id,
-                    'target_id': target_place_id,
-                    'is_place_to_transition': False
-                })
-                return
+            # Check if this is a process reference
+            if part in self.process_definitions:
+                # Check if this is the last part in the sequence
+                if i == len(parts) - 1:
+                    # This is the last part - create recursive reference or
+                    # expand the process definition
+                    
+                    # If reference to current process, create recursive loop
+                    if part == process_name:
+                        # Create transition for recursion
+                        transition_id = self.get_id()
+                        self.transitions.append({
+                            'id': transition_id,
+                            'name': 'τ',
+                            'x': self.get_place_x(current_place_id) + 75 + x_offset,
+                            'y': y_pos,
+                            'is_recursion': True
+                        })
+                        
+                        # Connect current place to transition
+                        self.arcs.append({
+                            'source_id': current_place_id,
+                            'target_id': transition_id,
+                            'is_place_to_transition': True
+                        })
+                        
+                        # Connect transition back to process place
+                        self.arcs.append({
+                            'source_id': transition_id,
+                            'target_id': place_id,
+                            'is_place_to_transition': False
+                        })
+                    else:
+                        # Reference to another process - expand it inline
+                        ref_expr = self.process_definitions[part]
+                        
+                        # Expand the referenced process with correct actions
+                        self.expand_process_reference(ref_expr, current_place_id, process_name, y_pos, x_offset)
+                else:
+                    # Process reference in middle of sequence - treat as normal action
+                    # (because it needs to be followed by more actions)
+                    self.create_action_transition(part, current_place_id, process_name, y_pos, x_offset)
+                    
+                    # Get the next place ID
+                    next_place_id = self.get_id()
+                    self.places.append({
+                        'id': next_place_id,
+                        'name': '',
+                        'tokens': 0,
+                        'x': self.get_place_x(current_place_id) + 150 + x_offset,
+                        'y': y_pos,
+                        'process': process_name
+                    })
+                    
+                    # Update current place
+                    current_place_id = next_place_id
+                    x_offset += 150
             else:
-                # Regular action (or undefined process - treat as action)
-                transition_id = self.get_id()
-                self.transitions.append({
-                    'id': transition_id,
-                    'name': expr,
-                    'x': self._get_place_by_id(source_place_id)['x'] + 100,
-                    'y': base_y,
-                    'process': process_name
-                })
+                # This is a regular action
+                transition_id = self.create_action_transition(part, current_place_id, process_name, y_pos, x_offset)
                 
-                # Connect source place to this transition
-                self.arcs.append({
-                    'source_id': source_place_id,
-                    'target_id': transition_id,
-                    'is_place_to_transition': True
-                })
+                # Create next place if this isn't the last part
+                if i < len(parts) - 1:
+                    next_place_id = self.get_id()
+                    self.places.append({
+                        'id': next_place_id,
+                        'name': '',
+                        'tokens': 0,
+                        'x': self.get_place_x(current_place_id) + 150 + x_offset,
+                        'y': y_pos,
+                        'process': process_name
+                    })
+                    
+                    # Connect transition to next place
+                    self.arcs.append({
+                        'source_id': transition_id,
+                        'target_id': next_place_id,
+                        'is_place_to_transition': False
+                    })
+                    
+                    # Update current place
+                    current_place_id = next_place_id
+                else:
+                    # This is the last part - create a terminal place
+                    terminal_place_id = self.get_id()
+                    self.places.append({
+                        'id': terminal_place_id,
+                        'name': '',
+                        'tokens': 0,
+                        'x': self.get_place_x(current_place_id) + 150 + x_offset,
+                        'y': y_pos,
+                        'process': process_name
+                    })
+                    
+                    # Connect transition to terminal place
+                    self.arcs.append({
+                        'source_id': transition_id,
+                        'target_id': terminal_place_id,
+                        'is_place_to_transition': False
+                    })
                 
-                # Create a terminal place if this is the end of a sequence
-                terminal_place_id = self.get_id()
-                self.places.append({
-                    'id': terminal_place_id,
-                    'name': "STOP" if expr.upper() == "STOP" else f"",
-                    'tokens': 0,
-                    'x': self._get_place_by_id(source_place_id)['x'] + 200,
-                    'y': base_y,
-                    'process': process_name
-                })
+                x_offset += 150
+    
+    def expand_process_reference(self, expr, place_id, process_name, y_pos, x_offset=0):
+        """Expand a process reference inline with its actions"""
+        expr = self.remove_outer_parentheses(expr)
+        
+        # Handle choice operator
+        if '+' in expr and not self.is_in_parentheses(expr, expr.find('+')):
+            choices = self.split_by_operator(expr, '+')
+            for i, choice in enumerate(choices):
+                self.parse_sequence(choice.strip(), place_id, process_name, y_pos + i * 40)
+        else:
+            # Parse the first action in the sequence
+            parts = self.split_by_operator(expr, '.')
+            if parts:
+                first_part = parts[0].strip()
+                first_part = self.remove_outer_parentheses(first_part)
                 
-                # Connect transition to the terminal place
-                self.arcs.append({
-                    'source_id': transition_id,
-                    'target_id': terminal_place_id,
-                    'is_place_to_transition': False
-                })
-
-   
-    def _get_place_by_id(self, place_id):
-        """Get a place by its ID"""
+                if first_part:
+                    # Create transition for first action
+                    transition_id = self.create_action_transition(first_part, place_id, process_name, y_pos, x_offset)
+                    
+                    # Create next place
+                    next_place_id = self.get_id()
+                    self.places.append({
+                        'id': next_place_id,
+                        'name': '',
+                        'tokens': 0,
+                        'x': self.get_place_x(place_id) + 150 + x_offset,
+                        'y': y_pos,
+                        'process': process_name
+                    })
+                    
+                    # Connect transition to next place
+                    self.arcs.append({
+                        'source_id': transition_id,
+                        'target_id': next_place_id,
+                        'is_place_to_transition': False
+                    })
+                    
+                    # Continue with rest of sequence if any
+                    if len(parts) > 1:
+                        rest = '.'.join(parts[1:])
+                        self.parse_sequence(rest, next_place_id, process_name, y_pos)
+    
+    def create_action_transition(self, action, place_id, process_name, y_pos, x_offset=0):
+        """Create a transition for an action"""
+        # Create transition
+        transition_id = self.get_id()
+        self.transitions.append({
+            'id': transition_id,
+            'name': action,
+            'x': self.get_place_x(place_id) + 75 + x_offset,
+            'y': y_pos,
+            'process': process_name
+        })
+        
+        # Connect place to transition
+        self.arcs.append({
+            'source_id': place_id,
+            'target_id': transition_id,
+            'is_place_to_transition': True
+        })
+        
+        return transition_id
+    
+    def get_place_x(self, place_id):
+        """Get the x coordinate of a place"""
         for place in self.places:
             if place['id'] == place_id:
-                return place
-        return {'x': 100, 'y': 100}  # Default if not found
+                return place['x']
+        return 100  # Default
     
-    def _is_in_parentheses(self, expr, pos):
+    def remove_outer_parentheses(self, expr):
+        """Remove outer parentheses from an expression"""
+        expr = expr.strip()
+        
+        if expr.startswith('(') and expr.endswith(')'):
+            # Check if these are matching outer parentheses
+            open_count = 0
+            for i, char in enumerate(expr):
+                if char == '(':
+                    open_count += 1
+                elif char == ')':
+                    open_count -= 1
+                    if open_count == 0 and i == len(expr) - 1:
+                        return expr[1:-1].strip()
+                    if open_count == 0 and i < len(expr) - 1:
+                        return expr
+        
+        return expr
+    
+    def is_in_parentheses(self, expr, pos):
         """Check if the character at position is inside parentheses"""
         if pos < 0 or pos >= len(expr):
             return False
@@ -366,30 +381,7 @@ class ProcessAlgebraParser:
         
         return open_count > 0
     
-    def _remove_outer_parentheses(self, expr):
-        """Remove outer parentheses from an expression if present"""
-        expr = expr.strip()
-        
-        # Check if the expression is surrounded by parentheses
-        if expr.startswith('(') and expr.endswith(')'):
-            # Verify that these are matching outer parentheses
-            open_count = 0
-            for i, char in enumerate(expr):
-                if char == '(':
-                    open_count += 1
-                elif char == ')':
-                    open_count -= 1
-                    # If we've found the matching closing parenthesis for the first opening one
-                    # and it's the last character, then we can remove the outer parentheses
-                    if open_count == 0 and i == len(expr) - 1:
-                        return expr[1:-1].strip()
-                    # If we close all parentheses before the end, these aren't outer parentheses
-                    if open_count == 0 and i < len(expr) - 1:
-                        return expr
-        
-        return expr
-    
-    def _split_by_operator(self, expr, operator):
+    def split_by_operator(self, expr, operator):
         """Split expression by an operator, respecting parentheses"""
         result = []
         start = 0
@@ -410,85 +402,15 @@ class ProcessAlgebraParser:
         
         return result
     
-    def _split_by_first_operator(self, expr, operator):
-        """Split expression by the first occurrence of an operator, respecting parentheses"""
-        paren_level = 0
-        
-        for i, char in enumerate(expr):
-            if char == '(':
-                paren_level += 1
-            elif char == ')':
-                paren_level -= 1
-            elif char == operator and paren_level == 0:
-                return [expr[:i], expr[i+1:]]
-        
-        # If no operator found, return the entire expression
-        return [expr]
-        
-    def _expand_process_references(self, expr):
-        """Expand process references in an expression with their definitions"""
-        # We don't expand recursive self-references, only references to other processes
-        
-        # Track which processes have been expanded to avoid infinite recursion
-        expanded = {}
-        
-        def expand_nonrecursive_refs(expression, current_process=None):
-            """Inner function to expand references without causing recursion"""
-            # No need to re-expand if we've already processed this expression
-            if expression in expanded:
-                return expanded[expression]
-                
-            result = expression
-            changed = False
-            
-            # For each process name in our definitions
-            for process_name, process_expr in self.process_definitions.items():
-                # Skip self-references to avoid infinite recursion
-                if process_name == current_process:
-                    continue
-                    
-                # Look for standalone process names (not part of other identifiers)
-                pattern = r'\b' + re.escape(process_name) + r'\b'
-                
-                # Check if we have a match
-                if re.search(pattern, result):
-                    # Don't replace the process if it would cause infinite recursion
-                    # Instead, leave the process name as is - it will be handled during parsing
-                    result = re.sub(pattern, process_name, result)
-                    changed = True
-            
-            # Remember this expansion to avoid redundant work
-            expanded[expression] = result
-            return result
-            
-        # Start expansion with no current process (root level)
-        return expand_nonrecursive_refs(expr)
-        
     def get_parsing_errors(self):
-        """Return any parsing errors that occurred"""
-        # This is just a placeholder to handle the AttributeError mentioned in the stack trace
+        """Return any parsing errors"""
         return []
         
     def export_to_process_algebra(self):
         """Export the Petri net back to process algebra code"""
-        # This method would generate process algebra code from the Petri net
-        # It's a placeholder for now and would need to be implemented
         result = []
         
-        # Recreate the process definitions
-        for name, _ in self.process_definitions.items():
-            # Find the initial place for this process
-            place_id = self.process_places.get(name)
-            if place_id is not None:
-                # Recreate the process expression
-                expr = self._build_expression_from_place(place_id)
-                if expr:
-                    result.append(f"{name} = {expr}")
-        print(f"export result: {result}")
+        for name, expr in self.process_definitions.items():
+            result.append(f"{name} = {expr}")
+        
         return "\n".join(result)
-    
-    def _build_expression_from_place(self, place_id):
-        """Build a process algebra expression starting from a place"""
-        # This is a placeholder and would need to be implemented
-        # The idea is to follow the Petri net structure and rebuild the expressions
-        return ""

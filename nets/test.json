@@ -1,0 +1,211 @@
+{
+  "places": [
+    {
+      "id": 0,
+      "name": "Q",
+      "tokens": 1,
+      "x": 100,
+      "y": 100,
+      "is_process": true,
+      "process": "Q"
+    },
+    {
+      "id": 1,
+      "name": "P",
+      "tokens": 1,
+      "x": 100,
+      "y": 250,
+      "is_process": true,
+      "process": "P"
+    },
+    {
+      "id": 3,
+      "name": "",
+      "tokens": 0,
+      "x": 300,
+      "y": 100,
+      "process": "Q"
+    },
+    {
+      "id": 6,
+      "name": "",
+      "tokens": 0,
+      "x": 300,
+      "y": 180,
+      "process": "Q"
+    },
+    {
+      "id": 10,
+      "name": "",
+      "tokens": 0,
+      "x": 300,
+      "y": 340,
+      "process": "P"
+    },
+    {
+      "id": 12,
+      "name": "STOP",
+      "tokens": 0,
+      "x": 500,
+      "y": 340,
+      "is_terminal": true,
+      "process": "P"
+    }
+  ],
+  "transitions": [
+    {
+      "id": 2,
+      "name": "c",
+      "x": 200,
+      "y": 100,
+      "process": "Q"
+    },
+    {
+      "id": 4,
+      "name": "d",
+      "x": 400,
+      "y": 100,
+      "process": "Q"
+    },
+    {
+      "id": 5,
+      "name": "c",
+      "x": 200,
+      "y": 180,
+      "process": "Q"
+    },
+    {
+      "id": 7,
+      "name": "d",
+      "x": 400,
+      "y": 180,
+      "process": "Q"
+    },
+    {
+      "id": 8,
+      "name": "e",
+      "x": 200,
+      "y": 260,
+      "process": "Q"
+    },
+    {
+      "id": 9,
+      "name": "a",
+      "x": 200,
+      "y": 340,
+      "process": "P"
+    },
+    {
+      "id": 11,
+      "name": "b",
+      "x": 400,
+      "y": 340,
+      "process": "P"
+    },
+    {
+      "id": 13,
+      "name": "e",
+      "x": 200,
+      "y": 180,
+      "process": "Q"
+    }
+  ],
+  "arcs": [
+    {
+      "source_id": 0,
+      "target_id": 2,
+      "is_place_to_transition": true
+    },
+    {
+      "source_id": 2,
+      "target_id": 3,
+      "is_place_to_transition": false
+    },
+    {
+      "source_id": 3,
+      "target_id": 4,
+      "is_place_to_transition": true
+    },
+    {
+      "source_id": 4,
+      "target_id": 0,
+      "is_place_to_transition": false
+    },
+    {
+      "source_id": 0,
+      "target_id": 5,
+      "is_place_to_transition": true
+    },
+    {
+      "source_id": 5,
+      "target_id": 6,
+      "is_place_to_transition": false
+    },
+    {
+      "source_id": 6,
+      "target_id": 7,
+      "is_place_to_transition": true
+    },
+    {
+      "source_id": 7,
+      "target_id": 0,
+      "is_place_to_transition": false
+    },
+    {
+      "source_id": 0,
+      "target_id": 8,
+      "is_place_to_transition": true
+    },
+    {
+      "source_id": 8,
+      "target_id": 1,
+      "is_place_to_transition": false
+    },
+    {
+      "source_id": 1,
+      "target_id": 9,
+      "is_place_to_transition": true
+    },
+    {
+      "source_id": 9,
+      "target_id": 10,
+      "is_place_to_transition": false
+    },
+    {
+      "source_id": 10,
+      "target_id": 11,
+      "is_place_to_transition": true
+    },
+    {
+      "source_id": 11,
+      "target_id": 12,
+      "is_place_to_transition": false
+    },
+    {
+      "source_id": 0,
+      "target_id": 13,
+      "is_place_to_transition": true
+    },
+    {
+      "source_id": 13,
+      "target_id": 1,
+      "is_place_to_transition": false
+    }
+  ],
+  "parse_tree": {
+    "process_definitions": {
+      "Q": "c.d.Q + e.P",
+      "P": "a.b.STOP"
+    },
+    "expanded_definitions": {
+      "Q": "c.d.Q + e.(a.b.STOP)",
+      "P": "a.b.STOP"
+    },
+    "process_places": {
+      "Q": 0,
+      "P": 1
+    },
+    "current_id": 14
+  },
+  "source_code": "Q = c.d.Q + e.P\nP = a.b.STOP"
+}

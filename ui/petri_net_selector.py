@@ -1,9 +1,10 @@
-# Update ui/petri_net_selector.py
+# ui/petri_net_selector.py
 
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                             QPushButton, QLabel, QListWidget, QListWidgetItem)
 from PyQt5.QtCore import Qt, pyqtSignal
 from models.parser import ProcessAlgebraParser
+import re
 
 class PetriNetSelectorWindow(QMainWindow):
     """Window for selecting a Petri net to visualize"""
@@ -62,8 +63,6 @@ class PetriNetSelectorWindow(QMainWindow):
         self.parser = ProcessAlgebraParser()
         
         # Sample Petri nets list
-        self.available_nets = []
-        # Sample Petri nets list
         self.available_nets = [
             {
                 'name': 'Simple Cycle',
@@ -101,35 +100,24 @@ class PetriNetSelectorWindow(QMainWindow):
                 'expression': 'Process = (action.(behavior.next)).Process + choice.(done.(exit.STOP))'
             }
         ]
-        #     {
-        #         'name': 'Simple Cycle',
-        #         'description': 'P = a.b.P',
-        #         'expression': 'P = a.b.P'
-        #     },
-        #     {
-        #         'name': 'Choice Process',
-        #         'description': 'P = a.P + b.STOP',
-        #         'expression': 'P = a.P + b.STOP'
-        #     },
-        #     {
-        #         'name': 'Ping-Pong Processes',
-        #         'description': 'P = ping.Q\nQ = pong.P',
-        #         'expression': 'P = ping.Q\nQ = pong.P'
-        #     },
-        #     {
-        #         'name': 'Complex Cycle',
-        #         'description': 'P = a.b.P + c.Q\nQ = d.e.P + f.Q',
-        #         'expression': 'P = a.b.P + c.Q\nQ = d.e.P + f.Q'
-        #     },
-        #     {
-        #         'name': 'Producer-Consumer',
-        #         'description': 'Producer = produce.send.Producer\nConsumer = receive.consume.Consumer\nSystem = Producer | Consumer',
-        #         'expression': 'Producer = produce.send.Producer\nConsumer = receive.consume.Consumer\nSystem = Producer | Consumer'
-        #     }
-        # ]
         
         # List to store named Petri nets from parser
         self.parser_nets = []
+    
+    def find_processes_in_right_hand_side(self, process_definitions):
+        """Find process names that appear on the right-hand side of any definition"""
+        right_side_processes = set()
+        
+        for process_name, definition in process_definitions.items():
+            # Look for process names (including when they're part of expressions)
+            for other_name in process_definitions.keys():
+                if other_name != process_name:  # Skip self-references
+                    # Use regex to find whole word matches only
+                    pattern = r'\b' + re.escape(other_name) + r'\b'
+                    if re.search(pattern, definition):
+                        right_side_processes.add(other_name)
+        
+        return right_side_processes
     
     def populate_list(self):
         """Populate the list with available Petri nets"""
@@ -185,6 +173,7 @@ class PetriNetSelectorWindow(QMainWindow):
             net_data = item.data(Qt.UserRole)
             self.net_selected.emit(net_data['expression'])
             self.close()
+            
     def on_view_clicked(self):
         """Handle view button click"""
         current_item = self.list_widget.currentItem()
@@ -234,7 +223,8 @@ class PetriNetSelectorWindow(QMainWindow):
     
     
     def load_parser_definitions(self):
-        """Load Petri net definitions from the parser"""
+        """Load Petri net definitions from the parser, filtering out
+        those that appear on the right-hand side of other definitions"""
         
         # Clear previous parser nets
         self.parser_nets = []
@@ -245,11 +235,20 @@ class PetriNetSelectorWindow(QMainWindow):
         if not process_definitions:
             return
         
-        # Convert process definitions to net format
+        # Find processes that appear on the right-hand side
+        right_side_processes = self.find_processes_in_right_hand_side(process_definitions)
+        print(f"Processes on right-hand side: {right_side_processes}")
+        
+        # Convert process definitions to net format, excluding those on the right side
         for name, expr in process_definitions.items():
+            # Skip if this process appears on the right-hand side of another process
+            if name in right_side_processes:
+                continue
+                
             # Create a complete expression that can be parsed
             full_expr = f"{name} = {expr}"
-            print(f"full_expr: {full_expr}")
+            print(f"Including process for display: {full_expr}")
+            
             # Skip duplicates
             duplicate = False
             for net in self.parser_nets:
@@ -264,10 +263,11 @@ class PetriNetSelectorWindow(QMainWindow):
                     'expression': full_expr
                 }
                 self.parser_nets.append(net)
-                print(f"in list for display net: {net}")
+                print(f"Added to selector: {net['name']}")
     
         # Add a special entry for the combined processes if there are multiple
-        if len(process_definitions) > 1:
+        # and at least one process is not on the right-hand side
+        if len(process_definitions) > 1 and len(self.parser_nets) > 0:
             # Create a combined expression with all processes
             combined_expr = "\n".join([f"{name} = {expr}" for name, expr in process_definitions.items()])
             
