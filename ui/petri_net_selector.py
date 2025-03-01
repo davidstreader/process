@@ -221,66 +221,65 @@ class PetriNetSelectorWindow(QMainWindow):
                 self.list_widget.setCurrentItem(item)
                 break
     
-    
+   ############################
+   # Update this method in ui/petri_net_selector.py
+
+    # Update this method in ui/petri_net_selector.py
+
     def load_parser_definitions(self):
-        """Load Petri net definitions from the parser, filtering out
-        those that appear on the right-hand side of other definitions"""
+        """Load Petri net definitions from the parser, handling references properly"""
         
         # Clear previous parser nets
         self.parser_nets = []
         
         # Get process definitions from parser
-        process_definitions = self.parser.process_definitions
-        print(f"Loading parser definitions...", process_definitions)
+        process_definitions = self.parser.main_processes
+        print(f"Loading parser definitions: {process_definitions}")
         if not process_definitions:
             return
         
-        # Find processes that appear on the right-hand side
-        right_side_processes = self.find_processes_in_right_hand_side(process_definitions)
-        print(f"Processes on right-hand side: {right_side_processes}")
-        
-        # Convert process definitions to net format, excluding those on the right side
-        for name, expr in process_definitions.items():
-            # Skip if this process appears on the right-hand side of another process
-            if name in right_side_processes:
-                continue
-                
-            # Create a complete expression that can be parsed
-            full_expr = f"{name} = {expr}"
-            print(f"Including process for display: {full_expr}")
+        # For each process, create a complete expression that includes all
+        # processes it references, directly or indirectly
+        for process_name in process_definitions:
+            # Start with the selected process
+            included_processes = [process_name]
             
-            # Skip duplicates
-            duplicate = False
-            for net in self.parser_nets:
-                if net['expression'] == full_expr:
-                    duplicate = True
-                    break
-                    
-            if not duplicate:
-                net = {
-                    'name': f"Process: {name}",
-                    'description': full_expr,
-                    'expression': full_expr
-                }
-                self.parser_nets.append(net)
-                print(f"Added to selector: {net['name']}")
-    
-        # Add a special entry for the combined processes if there are multiple
-        # and at least one process is not on the right-hand side
-        if len(process_definitions) > 1 and len(self.parser_nets) > 0:
-            # Create a combined expression with all processes
-            combined_expr = "\n".join([f"{name} = {expr}" for name, expr in process_definitions.items()])
+            # Follow references recursively
+            def add_references(proc):
+                expr = process_definitions[proc]
+                for ref_name in process_definitions:
+                    if ref_name != proc and ref_name not in included_processes:
+                        pattern = r'\b' + re.escape(ref_name) + r'\b'
+                        if re.search(pattern, expr):
+                            included_processes.append(ref_name)
+                            add_references(ref_name)
             
-            # Add a "Main System" entry that includes all processes
-            all_processes = {
-                'name': "Main System (All Processes)",
-                'description': "Combined system with all defined processes",
-                'expression': combined_expr
+            # Find all processes referenced by this one
+            add_references(process_name)
+            
+            # Create the full expression with all required processes
+            full_expr = "\n".join([f"{name} = {process_definitions[name]}" 
+                                for name in included_processes])
+            
+            # Create the net entry
+            net = {
+                'name': f"Process: {process_name}",
+                'description': full_expr,
+                'expression': full_expr
             }
-            self.parser_nets.append(all_processes)
+            
+            # Check for duplicates
+            if not any(existing['expression'] == full_expr for existing in self.parser_nets):
+                self.parser_nets.append(net)
+                print(f"Added net for {process_name} with processes: {', '.join(included_processes)}")
+        
+        # Also create a combined expression with all processes
+        
         
         # Refresh the list
         self.populate_list()
+   # ###########################
+                
     
     def show_selector(self):
         """Show the selector window with updated list"""

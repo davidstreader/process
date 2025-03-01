@@ -24,29 +24,55 @@ class PetriNetScene(QGraphicsScene):
         self.arc_items = {}    # Store arc line items for redrawing
         self.parser = None     # Store reference to parser for arc redrawing
     
+    # In ui/petri_net_scene.py, update the clear_and_draw_petri_net method in DraggableScene class:
+
     def clear_and_draw_petri_net(self, parser):
-        """Clear the scene and draw the Petri net from parser data"""
+        """Override to track related items"""
+        # Clear tracking dictionaries
+        self.node_related_items = {}
+        
+        # Debug: Print parser data to verify we're receiving it correctly
+        print(f"Drawing Petri net with {len(parser.places)} places, {len(parser.transitions)} transitions")
+        
+        # Initialize node_related_items for all places and transitions BEFORE drawing
+        for place in parser.places:
+            place_id = place['id']
+            self.node_related_items[f"p{place_id}"] = {
+                "labels": [],
+                "tokens": []
+            }
+        
+        for transition in parser.transitions:
+            transition_id = transition['id']
+            self.node_related_items[f"t{transition_id}"] = {
+                "labels": []
+            }
+        
+        # Store a reference to the parser
+        self.parser = parser
+        
+        # Clear the scene before drawing
         self.clear()
         self.place_items = {}
         self.transition_items = {}
         self.arc_items = {}
-        self.parser = parser   # Store reference to parser
         
         # Draw places (circles)
         for place in parser.places:
             self.draw_place(place)
-            print(f"place: {place}")
+            print(f"Drew place: {place['name']} (ID: {place['id']})")
         
         # Draw transitions (rectangles)
         for transition in parser.transitions:
             self.draw_transition(transition)
-            print(f"transition: {transition}")
+            print(f"Drew transition: {transition['name']} (ID: {transition['id']})")
         
         # Draw arcs (arrows)
         self.draw_arcs(parser)
         
         # Set scene rect to fit all items with padding
         self.setSceneRect(self.itemsBoundingRect().adjusted(-50, -50, 50, 50))
+
     
     def draw_place(self, place):
         """Draw a place in the Petri net"""
@@ -122,7 +148,91 @@ class PetriNetScene(QGraphicsScene):
         self.addItem(text)
         
         return rect
-    
+    # Add this to PetriNetScene.draw_arcs in ui/petri_net_scene.py to help debug arc drawing issues
+
+    def draw_arcs(self, parser):
+        """Draw arcs between places and transitions"""
+        # Clear any existing arc items
+        for arc_id in self.arc_items:
+            for item in self.arc_items[arc_id]:
+                if item in self.items():
+                    self.removeItem(item)
+        self.arc_items = {}
+        
+        # Debug information
+        print(f"Drawing {len(parser.arcs)} arcs")
+        
+        # Draw each arc
+        for i, arc in enumerate(parser.arcs):
+            source_id = arc['source_id']
+            target_id = arc['target_id']
+            
+            print(f"Arc {i}: source={source_id}, target={target_id}, is_place_to_transition={arc['is_place_to_transition']}")
+            
+            # Initialize coordinates
+            start_x, start_y = 0, 0
+            end_x, end_y = 0, 0
+            
+            # Get start and end coordinates
+            if arc['is_place_to_transition']:
+                # From place to transition
+                place_found = False
+                transition_found = False
+                
+                for place in parser.places:
+                    if place['id'] == source_id:
+                        start_x, start_y = place['x'], place['y']
+                        place_found = True
+                        print(f"  Found source place: {place['name']} at ({start_x}, {start_y})")
+                        break
+                
+                for transition in parser.transitions:
+                    if transition['id'] == target_id:
+                        end_x, end_y = transition['x'], transition['y']
+                        transition_found = True
+                        print(f"  Found target transition: {transition['name']} at ({end_x}, {end_y})")
+                        break
+                        
+                if not place_found:
+                    print(f"  ERROR: Source place {source_id} not found!")
+                if not transition_found:
+                    print(f"  ERROR: Target transition {target_id} not found!")
+                    
+            else:
+                # From transition to place
+                transition_found = False
+                place_found = False
+                
+                for transition in parser.transitions:
+                    if transition['id'] == source_id:
+                        start_x, start_y = transition['x'], transition['y']
+                        transition_found = True
+                        print(f"  Found source transition: {transition['name']} at ({start_x}, {start_y})")
+                        break
+                
+                for place in parser.places:
+                    if place['id'] == target_id:
+                        end_x, end_y = place['x'], place['y']
+                        place_found = True
+                        print(f"  Found target place: {place['name']} at ({end_x}, {end_y})")
+                        break
+                        
+                if not transition_found:
+                    print(f"  ERROR: Source transition {source_id} not found!")
+                if not place_found:
+                    print(f"  ERROR: Target place {target_id} not found!")
+            
+            # Skip if coordinates not found
+            if start_x == 0 and start_y == 0:
+                print(f"  Skipping arc {i}: source coordinates not found")
+                continue
+            if end_x == 0 and end_y == 0:
+                print(f"  Skipping arc {i}: target coordinates not found")
+                continue
+            
+            # Continue with normal arc drawing...
+            # [rest of the method remains the same]
+
     def itemChange(self, change, value):
         """Handle changes to items in the scene"""
         return super().itemChange(change, value)

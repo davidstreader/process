@@ -120,7 +120,8 @@ class PetriNetWindow(QMainWindow):
         self.select_button.setVisible(False)
         self.view_widget.setVisible(True)
     #####
-    
+    # Update this method in ui/petri_net_window.py
+
     def on_petri_net_selected(self, expression):
         """Handle selection of a Petri net from the selector"""
         print(f"Selected Petri net: {expression}")
@@ -129,6 +130,25 @@ class PetriNetWindow(QMainWindow):
         success = self.parser.parse(expression)
         
         if success:
+            print(f"Successfully parsed Petri net with {len(self.parser.places)} places, {len(self.parser.transitions)} transitions")
+            
+            # Show parsing results for debugging
+            print("Process definitions:")
+            for name, expr in self.parser.process_definitions.items():
+                print(f"  {name} = {expr}")
+            
+            print("Places:")
+            for place in self.parser.places:
+                print(f"  ID: {place['id']}, Name: {place['name']}, Process: {place.get('process', 'None')}")
+            
+            print("Transitions:")
+            for transition in self.parser.transitions:
+                print(f"  ID: {transition['id']}, Name: {transition['name']}, Process: {transition.get('process', 'None')}")
+            
+            print("Arcs:")
+            for arc in self.parser.arcs:
+                print(f"  Source: {arc['source_id']}, Target: {arc['target_id']}, Place->Trans: {arc['is_place_to_transition']}")
+            
             # Update the window title with the selected expression (shortened)
             display_expr = expression.split('\n')[0]
             if len(display_expr) > 40:
@@ -151,17 +171,25 @@ class PetriNetWindow(QMainWindow):
         else:
             QMessageBox.warning(self, "Parsing Error", 
                             "Could not parse the selected process algebra expression.")
-        
+    ####
     
+    # In ui/petri_net_window.py, replace the update_petri_net method with this:
+
     def update_petri_net(self, parser, file_path=None):
         """Update the Petri net visualization with the parser data"""
+        # Store a reference to the parser for later use
+        self.parser = parser
+        
         # Make sure we're using the correct scene type
         if not isinstance(self.scene, DraggableScene) and not isinstance(self.scene, PetriNetScene):
             print("Warning: Scene is not a PetriNetScene or DraggableScene instance")
             self.scene = DraggableScene(self)
             self.view.setScene(self.scene)
         
-        # Clear and draw the Petri net
+        # Pass a reference to the parser to the scene
+        self.scene.parser = parser
+        
+        # Clear and draw the Petri net using the parser data
         self.scene.clear_and_draw_petri_net(parser)
         
         # Reset view to show all elements
@@ -171,19 +199,18 @@ class PetriNetWindow(QMainWindow):
         if self.enable_layout:
             self.layout_algorithm.initialize_layout(parser)
             self.animation_timer.start()
-    
-    def update_layout_parameters(self, params):
+    def   update_layout_parameters(self, params):
         """Update the layout algorithm parameters from settings window"""
         print(f"Received new layout parameters: {params}")
-        
+            
         # Update the algorithm with new parameters
         self.layout_algorithm.set_parameters(params)
-        
-        # If layout is enabled, immediately apply the new settings
+            
+         # If layout is enabled, immediately apply the new settings
         if self.enable_layout and self.parser:
-            # When parameters change, reinitialize the layout with new settings
+              # When parameters change, reinitialize the layout with new settings
             self.layout_algorithm.initialize_layout(self.parser)
-    
+        
     def toggle_layout(self, state):
         """Toggle the force-directed layout animation"""
         self.enable_layout = (state == Qt.Checked)
@@ -310,3 +337,33 @@ class PetriNetWindow(QMainWindow):
             factor = 0.8
         
         self.view.scale(factor, factor)
+
+        # Add this method to the PetriNetWindow class in ui/petri_net_window.py
+
+    def node_position_changed(self, node_type, node_id):
+        """Handle node position changes"""
+        # Make sure the parser is updated with the new position
+        if node_type == 'place':
+            item = self.scene.place_items.get(node_id)
+            if item:
+                center = item.sceneBoundingRect().center()
+                # Update the parser data
+                for place in self.parser.places:
+                    if place['id'] == node_id:
+                        place['x'] = center.x()
+                        place['y'] = center.y()
+                        break
+        
+        elif node_type == 'transition':
+            item = self.scene.transition_items.get(node_id)
+            if item:
+                center = item.sceneBoundingRect().center()
+                # Update the parser data
+                for transition in self.parser.transitions:
+                    if transition['id'] == node_id:
+                        transition['x'] = center.x()
+                        transition['y'] = center.y()
+                        break
+        
+        # Update arcs to match new positions
+        self.scene.draw_arcs(self.parser)
