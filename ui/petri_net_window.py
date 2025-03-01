@@ -12,6 +12,50 @@ from models.parser import ProcessAlgebraParser
 from ui.petri_net_scene import PetriNetScene, DraggableScene
 from ui.petri_net_selector import PetriNetSelectorWindow
 
+# Update imports in ui/petri_net_window.py
+
+from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+                            QPushButton, QLabel, QGraphicsView, QCheckBox, 
+                            QMessageBox, QGraphicsItem, QGraphicsScene,
+                            QDialog, QTextEdit)
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QPainter, QPen, QBrush, QColor
+
+# Make sure SaveDialog is defined before PetriNetWindow
+
+class SaveDialog(QDialog):
+    """Dialog for saving Petri nets with a name"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Save Petri Net")
+        self.resize(300, 100)
+        
+        layout = QVBoxLayout(self)
+        
+        # Add name label and text field
+        layout.addWidget(QLabel("Enter name for Petri net:"))
+        self.name_edit = QTextEdit()
+        self.name_edit.setPlaceholderText("Enter name...")
+        self.name_edit.setMaximumHeight(50)
+        layout.addWidget(self.name_edit)
+        
+        # Add buttons
+        button_layout = QHBoxLayout()
+        self.save_button = QPushButton("Save")
+        self.cancel_button = QPushButton("Cancel")
+        button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.cancel_button)
+        layout.addLayout(button_layout)
+        
+        # Connect signals
+        self.save_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+    
+    def get_name(self):
+        """Get the entered name"""
+        return self.name_edit.toPlainText().strip()
+
 class PetriNetWindow(QMainWindow):
     """Window for visualizing the Petri net with force-directed layout"""
     
@@ -63,6 +107,17 @@ class PetriNetWindow(QMainWindow):
         layout_control_layout.addWidget(self.settings_button)
         view_layout.addLayout(layout_control_layout)
         
+        # Add this to the PetriNetWindow.__init__ method, just after the layout_control_layout code
+        # In the view_layout.addLayout(layout_control_layout) section
+
+        # Add save button
+        save_layout = QHBoxLayout()
+        self.save_button = QPushButton("Save Petri Net")
+        save_layout.addWidget(self.save_button)
+        view_layout.addLayout(save_layout)
+
+
+
         # Add "back to selection" button
         back_layout = QHBoxLayout()
         self.back_button = QPushButton("Back to Selection")
@@ -98,7 +153,8 @@ class PetriNetWindow(QMainWindow):
         self.apply_layout_button.clicked.connect(self.run_full_layout)
         self.animation_timer.timeout.connect(self.update_layout_step)
         self.selector_window.net_selected.connect(self.on_petri_net_selected)
-        
+        # Then add this in the connection setup section:
+        self.save_button.clicked.connect(self.save_current_petri_net)
         # Allow mouse wheel zooming
         self.view.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
         self.view.setResizeAnchor(QGraphicsView.AnchorUnderMouse)
@@ -153,7 +209,7 @@ class PetriNetWindow(QMainWindow):
             display_expr = expression.split('\n')[0]
             if len(display_expr) > 40:
                 display_expr = display_expr[:37] + "..."
-            self.setWindowTitle(f"Petri Net: {display_expr}")
+                self.setWindowTitle(f"Petri Net: {display_expr}")
             
             # Update the visualization
             self.update_petri_net(self.parser)
@@ -171,8 +227,6 @@ class PetriNetWindow(QMainWindow):
         else:
             QMessageBox.warning(self, "Parsing Error", 
                             "Could not parse the selected process algebra expression.")
-    ####
-    
     # In ui/petri_net_window.py, replace the update_petri_net method with this:
 
     def update_petri_net(self, parser, file_path=None):
@@ -367,3 +421,71 @@ class PetriNetWindow(QMainWindow):
         
         # Update arcs to match new positions
         self.scene.draw_arcs(self.parser)
+
+    def save_current_petri_net(self):
+        """Save the current Petri net to the stored nets"""
+        if not self.parser or not hasattr(self.parser, 'store_current_petri_net'):
+            QMessageBox.warning(self, "Save Error", "No parser available or parser doesn't support storing nets.")
+            return
+        
+        if not self.parser.places and not self.parser.transitions:
+            QMessageBox.warning(self, "Save Error", "No Petri net to save. Please visualize a valid process algebra expression first.")
+            return
+        
+        # Get a name for the Petri net
+        dialog = SaveDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            name = dialog.get_name()
+            if name:
+                try:
+                    # If we have a current_net already, update its name
+                    expression = ""
+                    for process_name, definition in self.parser.process_definitions.items():
+                        expression += f"{process_name} = {definition}\n"
+                    
+                    # Store the current Petri net
+                    net_id = self.parser.store_current_petri_net(name, expression)
+                    QMessageBox.information(self, "Save Successful", f"Petri net saved as '{name}'")
+                    
+                    # Update the selector window with the new net
+                    if hasattr(self.selector_window, 'populate_list'):
+                        self.selector_window.populate_list()
+                    
+                except Exception as e:
+                    QMessageBox.critical(self, "Save Error", f"Error saving Petri net: {str(e)}")
+            else:
+                QMessageBox.warning(self, "Save Error", "Please enter a name for the Petri net.")
+
+
+class SaveDialog(QDialog):
+    """Dialog for saving Petri nets with a name"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Save Petri Net")
+        self.resize(300, 100)
+        
+        layout = QVBoxLayout(self)
+        
+        # Add name label and text field
+        layout.addWidget(QLabel("Enter name for Petri net:"))
+        self.name_edit = QTextEdit()
+        self.name_edit.setPlaceholderText("Enter name...")
+        self.name_edit.setMaximumHeight(50)
+        layout.addWidget(self.name_edit)
+        
+        # Add buttons
+        button_layout = QHBoxLayout()
+        self.save_button = QPushButton("Save")
+        self.cancel_button = QPushButton("Cancel")
+        button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.cancel_button)
+        layout.addLayout(button_layout)
+        
+        # Connect signals
+        self.save_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+    
+    def get_name(self):
+        """Get the entered name"""
+        return self.name_edit.toPlainText().strip()                

@@ -2,7 +2,6 @@
 
 import re
 import math
-
 class ProcessAlgebraParser:
     def __init__(self):
         self.places = []
@@ -15,7 +14,8 @@ class ProcessAlgebraParser:
         self.parsed_processes = set()
         self.parsing_errors = []
         self.main_processes = {}
-
+        self.petri_nets = {}  # Dictionary to store petri nets with their data
+        self.current_net = None  # Track the current net being viewed
     
     def reset(self):
         self.places = []
@@ -27,6 +27,7 @@ class ProcessAlgebraParser:
         self.referenced_processes = set()
         self.parsed_processes = set()
         self.parsing_errors = []
+        # Keep petri_nets dictionary intact when resetting
     
     def get_id(self):
         self.current_id += 1
@@ -64,8 +65,7 @@ class ProcessAlgebraParser:
                         'process': name
                     })
                     self.process_places[name] = place_id
-            #print(f"Process start placers: {self.process_definitions}")
-            #print(f"Process places: {self.process_places}")
+            
             # Find processes referenced by others
             for name, expr in self.process_definitions.items():
                 for other_name in self.process_definitions:
@@ -73,26 +73,20 @@ class ProcessAlgebraParser:
                         pattern = r'\b' + re.escape(other_name) + r'\b'
                         if re.search(pattern, expr):
                             self.referenced_processes.add(other_name)
-            print(f"Referenced processes: {self.referenced_processes}")
+            
             # Find main processes (those not referenced)
             for name, expr in self.process_definitions.items():
                 if name not in self.referenced_processes:
                      self.main_processes[name] = expr   
-            #main_processes = [name for name in self.process_definitions.items() 
-            #                if name not in self.referenced_processes]
-            print(f"processes: {self.process_definitions}")
-            print(f"Main processes: {self.main_processes}")
-            
-                
-            #print(f"Main processes: {main_processes}")
             
             # Build the Petri net for each main process
             for i, process_name in enumerate(self.main_processes):
                 if process_name in self.process_places:
                     self.build_petri_net(process_name, i)
-                    
-            # Now make sure all referenced processes are also parsed
-            #self._build_all_referenced_processes()
+            
+            # Create petri_net entry for the current parse
+            net_name = next(iter(self.main_processes)) if self.main_processes else "Unnamed Net"
+            self.store_current_petri_net(net_name, text)
             
             return True
         except Exception as e:
@@ -103,6 +97,54 @@ class ProcessAlgebraParser:
             self.parsing_errors.append(error_msg)
             return False
 
+    def store_current_petri_net(self, name, source_text):
+        """Store the current Petri net data with its name"""
+        net_id = name.lower().replace(" ", "_")
+        
+        # Create a deep copy of the current state
+        import copy
+        
+        # Store all the data needed to recreate this net
+        self.petri_nets[net_id] = {
+            'name': name,
+            'source_text': source_text,
+            'places': copy.deepcopy(self.places),
+            'transitions': copy.deepcopy(self.transitions),
+            'arcs': copy.deepcopy(self.arcs),
+            'process_definitions': copy.deepcopy(self.process_definitions),
+            'process_places': copy.deepcopy(self.process_places),
+            'main_processes': copy.deepcopy(self.main_processes),
+            'last_id': self.current_id
+        }
+        
+        # Set as current net
+        self.current_net = net_id
+        
+        return net_id
+
+    def load_petri_net(self, net_id):
+        """Load a previously stored Petri net as the current net"""
+        if net_id not in self.petri_nets:
+            return False
+        
+        # Reset the current state
+        self.reset()
+        
+        # Load the stored net data
+        net_data = self.petri_nets[net_id]
+        self.places = net_data['places']
+        self.transitions = net_data['transitions']
+        self.arcs = net_data['arcs']
+        self.process_definitions = net_data['process_definitions']
+        self.process_places = net_data['process_places']
+        self.main_processes = net_data['main_processes']
+        self.current_id = net_data['last_id']
+        
+        # Set as current net
+        self.current_net = net_id
+        
+        return True
+
     def _build_all_referenced_processes(self):
         """Build all referenced processes to ensure completeness"""
         # Make a list of all processes to ensure they're fully parsed
@@ -112,10 +154,7 @@ class ProcessAlgebraParser:
                 # Calculate a position based on existing processes
                 position_index = len(self.parsed_processes)
                 self.build_petri_net(process_name, position_index)
-        
-   
-
-
+    
     def build_petri_net(self, process_name, index):
         """Build the Petri net for a process definition"""
         print(f"Building Petri net for process {process_name}")
@@ -145,8 +184,6 @@ class ProcessAlgebraParser:
                 ref_index = len(self.parsed_processes)
                 self.build_petri_net(ref_process, ref_index)
 
-    
-    
     def parse_expression(self, expr, place_id, process_name, base_y):
         """Parse a process algebra expression and build the Petri net"""
         expr = self.remove_outer_parentheses(expr)
@@ -162,14 +199,14 @@ class ProcessAlgebraParser:
     def parse_sequence(self, sequence, place_id, process_name, y_pos):
         """Parse a sequence like a.b.P"""
         sequence = self.remove_outer_parentheses(sequence)
-        #print(f"Parsing sequence: {sequence}")
+        
         # Split the sequence by dot operator
         parts = self.split_by_operator(sequence, '.')
         
         # Keep track of current place for the sequence
         current_place_id = place_id
         x_offset = 0
-        #print(f"Parts: {parts}")
+        
         for i, part in enumerate(parts):
             part = part.strip()
             part = self.remove_outer_parentheses(part)
@@ -207,19 +244,14 @@ class ProcessAlgebraParser:
                         'is_place_to_transition': False
                     })
                     break
-                #fall through to normal action
-                #print(f"Fall through Part {i}: {part}")
 
-            if    len(parts)== i +1: #last event 
-                    ##print(f"Fall through at end Part {i}: {part}")
+            if len(parts)== i +1: #last event 
                     transition_id = self.create_action_transition(part, current_place_id, process_name, y_pos, x_offset)                               
                     print(f"Created arc from {current_place_id} to {transition_id}")
                     #adds arc from current place to transition  
-            if    len(parts)> i +1:
-                    #print(f"Fall through not at end Part {i}: {part}")
+            if len(parts)> i +1:
                     transition_id = self.create_action_transition(part, current_place_id, process_name, y_pos, x_offset)
                     
-                    #print(f"Created arc from {current_place_id} to {transition_id}")
                     new_place_id = self.get_id()
                     self.places.append({
                             'id': new_place_id,
@@ -230,22 +262,16 @@ class ProcessAlgebraParser:
                             'is_terminal': False,
                             'process': process_name
                     })
-                    #print(f"Created new place {new_place_id}")
                     self.arcs.append({
                             'source_id': transition_id, #previous transition to new place
                             'target_id': new_place_id,
                             'is_place_to_transition': False  
                     })
-                    current_place_id = new_place_id
-                    #print(f"Created arc from {transition_id} to {new_place_id}")                         
+                    current_place_id = new_place_id                      
                 
                     x_offset += 100
                     continue           
-            # after loop
-    
                 
-                
-        
     def create_action_transition(self, action, place_id, process_name, y_pos, x_offset=0):
         """Create a transition for an action"""
         # Create transition
@@ -333,3 +359,7 @@ class ProcessAlgebraParser:
         if not self.parsing_errors:
             return ["No specific error information available. Check the console for details."]
         return self.parsing_errors
+        
+    def get_all_petri_nets(self):
+        """Return a list of all stored Petri nets with their metadata"""
+        return [{'id': net_id, 'name': data['name']} for net_id, data in self.petri_nets.items()]

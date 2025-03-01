@@ -63,43 +63,7 @@ class PetriNetSelectorWindow(QMainWindow):
         self.parser = ProcessAlgebraParser()
         
         # Sample Petri nets list
-        self.available_nets = [
-            {
-                'name': 'Simple Cycle',
-                'description': 'Process = action.behavior.Process',
-                'expression': 'Process = action.behavior.Process'
-            },
-            {
-                'name': 'Choice Process',
-                'description': 'Process = action.Process + behavior.STOP',
-                'expression': 'Process = action.Process + behavior.STOP'
-            },
-            {
-                'name': 'Ping-Pong Processes',
-                'description': 'Ping = ping.Pong\nPong = pong.Ping',
-                'expression': 'Ping = ping.Pong\nPong = pong.Ping'
-            },
-            {
-                'name': 'Complex Cycle',
-                'description': 'Process = action.behavior.Process + choice.Query\nQuery = decide.execute.Process + follow.Query',
-                'expression': 'Process = action.behavior.Process + choice.Query\nQuery = decide.execute.Process + follow.Query'
-            },
-            {
-                'name': 'Bracketed Example',
-                'description': 'Process = (action.behavior).Process + (choice.done).STOP',
-                'expression': 'Process = (action.behavior).Process + (choice.done).STOP'
-            },
-            {
-                'name': 'Producer-Consumer',
-                'description': 'Producer = produce.send.Producer\nConsumer = receive.consume.Consumer\nSystem = Producer | Consumer',
-                'expression': 'Producer = produce.send.Producer\nConsumer = receive.consume.Consumer\nSystem = Producer | Consumer'
-            },
-            {
-                'name': 'Nested Brackets',
-                'description': 'Process = (action.(behavior.next)).Process + choice.(done.(exit.STOP))',
-                'expression': 'Process = (action.(behavior.next)).Process + choice.(done.(exit.STOP))'
-            }
-        ]
+        self.available_nets = [  ]
         
         # List to store named Petri nets from parser
         self.parser_nets = []
@@ -123,14 +87,39 @@ class PetriNetSelectorWindow(QMainWindow):
         """Populate the list with available Petri nets"""
         self.list_widget.clear()
         
+        # Add stored Petri nets if any
+        stored_nets = self.parser.get_all_petri_nets() if hasattr(self.parser, 'get_all_petri_nets') else []
+        
+        if stored_nets:
+            self.list_widget.addItem("--- Stored Petri Nets ---")
+            item = self.list_widget.item(0)
+            item.setFlags(item.flags() & ~Qt.ItemIsSelectable)  # Make header non-selectable
+            
+            for net in stored_nets:
+                item = QListWidgetItem(net['name'])
+                stored_data = {
+                    'name': net['name'],
+                    'id': net['id'],
+                    'type': 'stored',
+                    'expression': self.parser.petri_nets[net['id']]['source_text']
+                }
+                item.setData(Qt.UserRole, stored_data)
+                self.list_widget.addItem(item)
+        
         # Add predefined examples
         if self.available_nets:
+            if stored_nets:  # Add a spacer if there were stored nets
+                self.list_widget.addItem("")
+                item = self.list_widget.item(self.list_widget.count() - 1)
+                item.setFlags(item.flags() & ~Qt.ItemIsSelectable)  # Make spacer non-selectable
+                
             self.list_widget.addItem("--- Predefined Examples ---")
-            item = self.list_widget.item(0)
+            item = self.list_widget.item(self.list_widget.count() - 1)
             item.setFlags(item.flags() & ~Qt.ItemIsSelectable)  # Make header non-selectable
             
             for net in self.available_nets:
                 item = QListWidgetItem(net['name'])
+                net['type'] = 'predefined'  # Add type for differentiation
                 item.setData(Qt.UserRole, net)  # Store the full net data
                 item.setToolTip(net['description'])
                 self.list_widget.addItem(item)
@@ -147,6 +136,7 @@ class PetriNetSelectorWindow(QMainWindow):
             
             for net in self.parser_nets:
                 item = QListWidgetItem(net['name'])
+                net['type'] = 'parser'  # Add type for differentiation
                 item.setData(Qt.UserRole, net)  # Store the full net data
                 item.setToolTip(net['description'])
                 self.list_widget.addItem(item)
@@ -158,7 +148,31 @@ class PetriNetSelectorWindow(QMainWindow):
                 self.list_widget.setCurrentItem(item)
                 break
 
-    
+    def on_view_clicked(self):
+        """Handle view button click"""
+        current_item = self.list_widget.currentItem()
+        if current_item and current_item.flags() & Qt.ItemIsSelectable:
+            net_data = current_item.data(Qt.UserRole)
+            
+            # Show a message with the selected net name
+            print(f"Selected: {net_data['name']}")
+            
+            # If this is a stored net, load it directly instead of reparsing
+            if net_data.get('type') == 'stored' and hasattr(self.parser, 'load_petri_net'):
+                if self.parser.load_petri_net(net_data['id']):
+                    # Emit the signal with the expression for display purposes
+                    self.net_selected.emit(net_data['expression'])
+                else:
+                    # Fallback to normal parsing if loading fails
+                    self.net_selected.emit(net_data['expression'])
+            else:
+                # Emit the signal with the expression
+                self.net_selected.emit(net_data['expression'])
+            
+            # Close the selector window
+            self.close()
+
+        
     def on_selection_changed(self, current, previous):
         """Handle selection change in the list"""
         # Only enable the view button if current is a selectable item
@@ -174,20 +188,7 @@ class PetriNetSelectorWindow(QMainWindow):
             self.net_selected.emit(net_data['expression'])
             self.close()
             
-    def on_view_clicked(self):
-        """Handle view button click"""
-        current_item = self.list_widget.currentItem()
-        if current_item and current_item.flags() & Qt.ItemIsSelectable:
-            net_data = current_item.data(Qt.UserRole)
-            
-            # Show a message with the selected net name
-            print(f"Selected: {net_data['name']}")
-            
-            # Emit the signal with the expression
-            self.net_selected.emit(net_data['expression'])
-            
-            # Close the selector window
-            self.close()
+    
     
     
     def add_custom_net(self, name, description, expression):
