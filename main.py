@@ -13,7 +13,7 @@
 
 
 import sys
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication,QMessageBox
 from ui.main_window import MainWindow
 from ui.settings_window import LayoutSettingsWindow
 from models.file_manager import FileManager

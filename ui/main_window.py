@@ -100,7 +100,8 @@ class SaveDialog(QDialog):
         self.update_main_processes_menu()
 
         # Clear any previous process visualizations
-        self.clear_visualizations()
+        #self.clear_visualizations() 
+        self.right_pane.clear()
     
     def get_name(self):
         """Get the entered name"""
@@ -153,7 +154,7 @@ class MainWindow(QMainWindow):
         self.right_pane = QWidget()
         right_layout = QVBoxLayout(self.right_pane)
         
-        right_layout.addWidget(QLabel("<b>Petri Net Visualization</b>"))
+        right_layout.addWidget(QLabel("<b>Petri Net right_pane</b>"))
         
         # Create the Petri net scene and view
         self.scene = DraggableScene(self)
@@ -181,7 +182,12 @@ class MainWindow(QMainWindow):
         zoom_controls.addWidget(self.zoom_out_button)
         zoom_controls.addWidget(self.reset_view_button)
         right_layout.addLayout(zoom_controls)
-        
+
+
+
+
+
+
         # Add the right pane to the splitter
         self.splitter.addWidget(self.right_pane)
         
@@ -215,104 +221,71 @@ class MainWindow(QMainWindow):
 
         # Update the right pane to use a scroll area
         # Right pane: Petri Net visualization with scroll area
-        self.right_pane = QWidget()
-        self.right_pane_layout = QVBoxLayout(self.right_pane)
+        # self.right_pane = QWidget()
+        # self.right_pane_layout = QVBoxLayout(self.right_pane)
 
-        # Add scroll area for multiple visualizations
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_content = QWidget()
-        self.scroll_layout = QVBoxLayout(self.scroll_content)
-        self.scroll_area.setWidget(self.scroll_content)
-        self.right_pane_layout.addWidget(self.scroll_area)
+        # # Add scroll area for multiple visualizations
+        # self.scroll_area = QScrollArea()
+        # self.scroll_area.setWidgetResizable(True)
+        # self.scroll_content = QWidget()
+        # self.scroll_layout = QVBoxLayout(self.scroll_content)
+        # self.scroll_area.setWidget(self.scroll_content)
+        # self.right_pane_layout.addWidget(self.scroll_area)
 
         # Add title
-        self.scroll_layout.addWidget(QLabel("<b>Petri Net Visualization</b>"))
+        # self.scroll_layout.addWidget(QLabel("<b>Petri Net scroll_layout</b>"))
 
         # Create a container for the main visualization
-        self.main_viz_container = QWidget()
-        main_viz_layout = QVBoxLayout(self.main_viz_container)
+        # self.main_viz_container = QWidget()
+        # main_viz_layout = QVBoxLayout(self.main_viz_container)
 
-        # Create the Petri net scene and view
-        self.scene = DraggableScene(self)
-        self.view = QGraphicsView(self.scene)
-        self.view.setRenderHint(QPainter.Antialiasing)
-        main_viz_layout.addWidget(self.view)
+        # # Create the Petri net scene and view
+        # self.scene = DraggableScene(self)
+        # self.view = QGraphicsView(self.scene)
+        # self.view.setRenderHint(QPainter.Antialiasing)
+        # main_viz_layout.addWidget(self.view)
 
-        # Layout controls
-        layout_controls = QHBoxLayout()
-        self.enable_layout_checkbox = QCheckBox("Enable Spring Layout")
-        self.apply_layout_button = QPushButton("Apply Full Layout")
-        self.settings_button = QPushButton("Layout Settings")
-        layout_controls.addWidget(self.enable_layout_checkbox)
-        layout_controls.addWidget(self.apply_layout_button)
-        layout_controls.addWidget(self.settings_button)
-        main_viz_layout.addLayout(layout_controls)
+        # # Layout controls
+        # layout_controls = QHBoxLayout()
+        # self.enable_layout_checkbox = QCheckBox("Enable Spring Layout")
+        # self.apply_layout_button = QPushButton("Apply Full Layout")
+        # self.settings_button = QPushButton("Layout Settings")
+        # layout_controls.addWidget(self.enable_layout_checkbox)
+        # layout_controls.addWidget(self.apply_layout_button)
+        # layout_controls.addWidget(self.settings_button)
+        # main_viz_layout.addLayout(layout_controls)
 
-        # Zoom controls
-        zoom_controls = QHBoxLayout()
-        self.zoom_in_button = QPushButton("Zoom In")
-        self.zoom_out_button = QPushButton("Zoom Out")
-        self.reset_view_button = QPushButton("Reset View")
-        zoom_controls.addWidget(self.zoom_in_button)
-        zoom_controls.addWidget(self.zoom_out_button)
-        zoom_controls.addWidget(self.reset_view_button)
-        main_viz_layout.addLayout(zoom_controls)
+        # # Zoom controls
+        # zoom_controls = QHBoxLayout()
+        # self.zoom_in_button = QPushButton("Zoom In")
+        # self.zoom_out_button = QPushButton("Zoom Out")
+        # self.reset_view_button = QPushButton("Reset View")
+        # zoom_controls.addWidget(self.zoom_in_button)
+        # zoom_controls.addWidget(self.zoom_out_button)
+        # zoom_controls.addWidget(self.reset_view_button)
+        # main_viz_layout.addLayout(zoom_controls)
 
-        # Add the main visualization to the scroll layout
-        self.scroll_layout.addWidget(self.main_viz_container)
+        # # Add the main visualization to the scroll layout
+        # self.scroll_layout.addWidget(self.main_viz_container)
 
         # Update these methods to use the scroll layout instead of right_pane_layout
 
         def show_process(self, process_name):
             """Show a specific process in a new visualization area"""
-            # Create a new visualization area
-            viz_widget = QWidget()
-            viz_layout = QVBoxLayout(viz_widget)
             
-            # Add a label with the process name
-            viz_layout.addWidget(QLabel(f"<b>Process: {process_name}</b>"))
-            
-            # Create scene and view for this process
-            scene = DraggableScene(self)
-            view = QGraphicsView(scene)
-            view.setRenderHint(QPainter.Antialiasing)
-            viz_layout.addWidget(view)
             
             # Create a subset of the parser data for this process
             process_parser = self.create_process_subset(process_name)
             
             # Draw the Petri net for this process
-            scene.clear_and_draw_petri_net(process_parser)
+            self.scene.clear_and_draw_petri_net(process_parser)
             
-            # Set a reasonable view size
-            view.setMinimumHeight(300)
-            view.setMaximumHeight(400)
             
-            # Add zoom controls for this view
-            zoom_layout = QHBoxLayout()
-            zoom_in_btn = QPushButton("Zoom In")
-            zoom_out_btn = QPushButton("Zoom Out")
-            reset_view_btn = QPushButton("Reset View")
-            
-            zoom_layout.addWidget(zoom_in_btn)
-            zoom_layout.addWidget(zoom_out_btn)
-            zoom_layout.addWidget(reset_view_btn)
-            viz_layout.addLayout(zoom_layout)
-            
-            # Connect zoom buttons
-            zoom_in_btn.clicked.connect(lambda: view.scale(1.2, 1.2))
-            zoom_out_btn.clicked.connect(lambda: view.scale(0.8, 0.8))
-            reset_view_btn.clicked.connect(lambda: self.reset_specific_view(view, scene))
-            
-            # Add the visualization widget to the scroll layout
-            self.scroll_layout.addWidget(viz_widget)
-            
-            # Reset view to show all content
-            self.reset_specific_view(view, scene)
+           # self.reset_specific_view(view, scene)
 
         def clear_visualizations(self):
             """Clear all visualization widgets except the main one"""
+            self.scene.clear()
             # Remove all widgets from the scroll layout except the first one (main visualization)
             while self.scroll_layout.count() > 1:
                 item = self.scroll_layout.itemAt(1)
@@ -499,15 +472,17 @@ class MainWindow(QMainWindow):
         reset_view_btn.clicked.connect(lambda: self.reset_specific_view(view, scene))
         
         # Add the visualization widget to the right pane's layout
-        self.right_pane_layout.addWidget(viz_widget)
+        self.scroll_layout.addWidget(viz_widget)
         
         # Reset view to show all content
         self.reset_specific_view(view, scene)
 
     def reset_specific_view(self, view, scene):
-        """Reset a specific view to fit its scene content"""
-        view.resetTransform()
-        view.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
+        scene.clear()
+        print(f"Resetting view for scene ")
+        # """Reset a specific view to fit its scene content"""
+        # view.resetTransform()
+        # view.fitInView(scene.sceneRect(), Qt.KeepAspectRatio)
 
     def create_process_subset(self, process_name):
         """Create a subset of the parser data focusing on the given process"""
@@ -613,8 +588,8 @@ class MainWindow(QMainWindow):
     def show_all_main_processes(self):
         """Show all main processes in separate visualization areas"""
         # Clear existing visualizations first
-        self.clear_visualizations()
-        
+        #self.clear_visualizations()
+        self.scene.clear()
         # Show each main process
         for process_name in self.parser.main_processes:
             self.show_process(process_name)
@@ -622,13 +597,13 @@ class MainWindow(QMainWindow):
     def clear_visualizations(self):
         """Clear all visualization widgets except the main one"""
         # Remove all widgets from the right pane layout except the first one (main visualization)
-        while self.right_pane_layout.count() > 1: 
-            item = self.right_pane_layout.itemAt(1)
+        while self.scroll_layout_layout.count() > 1: 
+            item = self.scroll_layout_layout.itemAt(1)
             if item:
                 widget = item.widget()
                 if widget:
                     widget.deleteLater()
-                self.right_pane_layout.removeItem(item)
+                self.scroll_layout_layout.removeItem(item)
 ##############################
 
 
@@ -830,14 +805,15 @@ Main = (Process) | (Query)"""
             self.scene.clear_and_draw_petri_net(self.parser)
     
     def run_full_layout(self):
-        """Run the full layout algorithm and redraw"""
-        if self.parser and self.parser.places:
-            # Apply full force-directed layout
-            self.layout_algorithm.apply_layout(self.parser)
+        self.scene.clear()
+        # """Run the full layout algorithm and redraw"""
+        # if self.parser and self.parser.places:
+        #     # Apply full force-directed layout
+        #     self.layout_algorithm.apply_layout(self.parser)
             
-            # Redraw the scene
-            self.scene.clear_and_draw_petri_net(self.parser)
-            self.reset_view()
+        #     # Redraw the scene
+        #     self.scene.clear_and_draw_petri_net(self.parser)
+        #     self.reset_view()
     
     def show_layout_settings(self):
         """Show the layout settings window"""
