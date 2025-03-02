@@ -780,6 +780,12 @@ Main = (Process) | (Query)"""
             
             # Update the visualization
             self.update_visualization()
+            
+            # DEBUG: Print current parser state
+            print(f"Parser after visualization: {len(self.parser.places)} places, {len(self.parser.transitions)} transitions")
+            
+            # Update the main processes menu (make sure this method exists)
+            self.update_main_processes_menu()
         else:
             # Show parsing errors
             errors = self.parser.get_parsing_errors()
@@ -788,7 +794,7 @@ Main = (Process) | (Query)"""
                 error_message += f"• {error}\n"
             
             QMessageBox.warning(self, "Parsing Error", error_message)
-    
+            
     def update_visualization(self):
         """Update the Petri net visualization with current parser data"""
         # Clear and draw the Petri net

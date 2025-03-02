@@ -229,6 +229,8 @@ class PetriNetWindow(QMainWindow):
             QMessageBox.warning(self, "Parsing Error", error_message)
 
             
+        # Fix for ui/petri_net_window.py
+
     def update_petri_net(self, parser, file_path=None):
         """Update the Petri net visualization with the parser data"""
         # Store a reference to the parser for later use
@@ -249,10 +251,127 @@ class PetriNetWindow(QMainWindow):
         # Reset view to show all elements
         self.reset_view()
         
+        # Show the visualization screen - THIS WAS MISSING
+        self.show_visualization_screen()
+        
         # Start layout animation if enabled
         if self.enable_layout:
             self.layout_algorithm.initialize_layout(parser)
             self.animation_timer.start()
+        
+        # Update window to show we're viewing a Petri net
+        if file_path:
+            import os
+            self.setWindowTitle(f"Petri Net: {os.path.basename(file_path)}")
+
+    # Update UI state
+        self.update_ui_state()
+        
+        # Fix for ui/editor_window.py - load_petri_net_from_file method
+    def load_petri_net_from_file(self, file_path):
+        """Load a Petri net from a file"""
+        data = self.file_manager.load_petri_net(file_path)
+        if data:
+            try:
+                # Update parser with loaded data
+                self.parser.reset()
+                self.parser.places = data['places']
+                self.parser.transitions = data['transitions']
+                self.parser.arcs = data['arcs']
+                
+                # Load parse tree if available
+                if 'parse_tree' in data:
+                    # Load process definitions - prioritize expanded if available
+                    if 'expanded_definitions' in data['parse_tree']:
+                        self.parser.process_definitions = data['parse_tree']['expanded_definitions']
+                    else:
+                        self.parser.process_definitions = data['parse_tree'].get('process_definitions', {})
+                    
+                    self.parser.process_places = data['parse_tree'].get('process_places', {})
+                    self.parser.current_id = data['parse_tree'].get('current_id', len(self.parser.places) + len(self.parser.transitions))
+                else:
+                    # Set correct current_id
+                    max_place_id = max([p['id'] for p in self.parser.places]) if self.parser.places else -1
+                    max_trans_id = max([t['id'] for t in self.parser.transitions]) if self.parser.transitions else -1
+                    self.parser.current_id = max(max_place_id, max_trans_id) + 1
+                
+                # Ensure the parser is shared with the Petri net window
+                if self.petri_net_window:
+                    self.petri_net_window.parser = self.parser
+                    self.petri_net_window.update_petri_net(self.parser, file_path)
+                    self.petri_net_window.show()
+                    self.petri_net_window.raise_()
+                
+                # Show success message
+                QMessageBox.information(self, "Load Successful", f"Petri net loaded from '{os.path.basename(file_path)}'")
+                
+                # Set the source code in the editor if available
+                if 'source_code' in data and data['source_code']:
+                    self.text_edit.setText(data['source_code'])
+                else:
+                    # Try to generate process algebra code from the Petri net
+                    try:
+                        process_algebra_code = self.parser.export_to_process_algebra()
+                        if process_algebra_code:
+                            self.text_edit.setText(process_algebra_code)
+                    except Exception as e:
+                        print(f"Error generating process algebra code: {str(e)}")
+                
+            except Exception as e:
+                QMessageBox.critical(self, "Load Error", f"Error loading Petri net: {str(e)}")
+        else:
+            QMessageBox.critical(self, "Load Error", f"Could not load Petri net from '{file_path}'")
+
+    # Fix for ui/petri_net_scene.py - clear_and_draw_petri_net method
+    def clear_and_draw_petri_net(self, parser):
+        """Override to track related items"""
+        # Clear tracking dictionaries
+        self.node_related_items = {}
+        
+        # Debug: Print parser data to verify we're receiving it correctly
+        print(f"Drawing Petri net with {len(parser.places)} places, {len(parser.transitions)} transitions")
+        
+        # Initialize node_related_items for all places and transitions BEFORE drawing
+        for place in parser.places:
+            place_id = place['id']
+            self.node_related_items[f"p{place_id}"] = {
+                "labels": [],
+                "tokens": []
+            }
+        
+        for transition in parser.transitions:
+            transition_id = transition['id']
+            self.node_related_items[f"t{transition_id}"] = {
+                "labels": []
+            }
+        
+        # Store a reference to the parser
+        self.parser = parser
+        
+        # Clear the scene before drawing
+        self.clear()
+        self.place_items = {}
+        self.transition_items = {}
+        self.arc_items = {}
+        
+        # Draw places (circles)
+        for place in parser.places:
+            self.draw_place(place)
+        
+        # Draw transitions (rectangles)
+        for transition in parser.transitions:
+            self.draw_transition(transition)
+        
+        # Draw arcs (arrows)
+        self.draw_arcs(parser)
+        
+        # Set scene rect to fit all items with padding
+        if self.items():  # Only set if there are items to display
+            self.setSceneRect(self.itemsBoundingRect().adjusted(-50, -50, 50, 50))
+            print(f"Set scene rect to {self.sceneRect()}")
+        else:
+            print("Warning: No items to display in the scene")
+
     def   update_layout_parameters(self, params):
         """Update the layout algorithm parameters from settings window"""
         print(f"Received new layout parameters: {params}")
@@ -265,18 +384,42 @@ class PetriNetWindow(QMainWindow):
               # When parameters change, reinitialize the layout with new settings
             self.layout_algorithm.initialize_layout(self.parser)
         
+    
+    
+    # Add debugging to toggle_layout in ui/petri_net_window.py
     def toggle_layout(self, state):
         """Toggle the force-directed layout animation"""
         self.enable_layout = (state == Qt.Checked)
+        
+        print(f"Toggle layout: {self.enable_layout}, Parser has {len(self.parser.places) if self.parser else 0} places")
         
         if self.enable_layout and self.parser:
             # Initialize layout and start animation
             self.layout_algorithm.initialize_layout(self.parser)
             self.animation_timer.start()
+            print("Layout animation started")
         else:
             # Stop animation
             self.animation_timer.stop()
-    
+            print("Layout animation stopped")
+
+
+# Add this method to PetriNetWindow to ensure buttons are properly enabled/disabled
+    def update_ui_state(self):
+        """Update UI elements based on current state"""
+        has_petri_net = hasattr(self, 'parser') and self.parser and len(self.parser.places) > 0
+        
+        # Enable/disable buttons that require a Petri net
+        self.zoom_in_button.setEnabled(has_petri_net)
+        self.zoom_out_button.setEnabled(has_petri_net)
+        self.reset_view_button.setEnabled(has_petri_net)
+        self.apply_layout_button.setEnabled(has_petri_net)
+        self.settings_button.setEnabled(has_petri_net)
+        self.save_button.setEnabled(has_petri_net)
+        
+        print(f"UI state updated, Petri net available: {has_petri_net}")
+
+
     def update_layout_step(self):
         """Update a single step of the force-directed layout"""
         if self.enable_layout and self.parser and not self.node_being_dragged:

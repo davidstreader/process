@@ -1,5 +1,3 @@
-# ui/editor_window.py
-
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, 
                            QHBoxLayout, QTextEdit, QPushButton, 
                            QLabel, QMessageBox, QFileDialog, QMenu, QAction,
@@ -8,6 +6,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
 import os
 import json
+
 from models.parser import ProcessAlgebraParser
 from models.file_manager import FileManager
 from ui.petri_net_selector import PetriNetSelectorWindow
@@ -146,23 +145,6 @@ class TextEditorWindow(QMainWindow):
         # Check for last net and try to load it
         self.load_last_net()
     
-
-    def open_load_dialog(self):
-        """Open dialog to load a Petri net"""
-        # Get available nets
-        nets = self.file_manager.get_available_nets()
-        
-        if not nets:
-            QMessageBox.information(self, "No Nets", "No saved Petri nets found.")
-            return
-        
-        # Open load dialog
-        dialog = LoadDialog(nets, self)
-        if dialog.exec_() == QDialog.Accepted:
-            path = dialog.get_selected_path()
-            if path:
-                self.load_petri_net_from_file(path)
-
     def create_menu_bar(self):
         """Create the application menu bar"""
         menubar = self.menuBar()
@@ -185,9 +167,6 @@ class TextEditorWindow(QMainWindow):
         # Save action
         save_action = QAction('Save...', self)
         save_action.setShortcut('Ctrl+S')
-        #
-        # 
-        #save_action.triggered.connect(self.open_save_dialog(self))
         save_action.triggered.connect(self.open_save_dialog)
         file_menu.addAction(save_action)
         
@@ -205,7 +184,7 @@ class TextEditorWindow(QMainWindow):
         # Visualize action
         visualize_action = QAction('Visualize', self)
         visualize_action.setShortcut('F5')
-        visualize_action.triggered.connect(self.show_petri_net_selector)  # Updated to use selector
+        visualize_action.triggered.connect(self.show_petri_net_selector)
         petri_menu.addAction(visualize_action)
         
         # Load example action
@@ -213,16 +192,22 @@ class TextEditorWindow(QMainWindow):
         example_action.triggered.connect(self.load_example)
         petri_menu.addAction(example_action)
     
-    
+    def open_load_dialog(self):
+        """Open dialog to load a Petri net"""
+        # Get available nets
+        nets = self.file_manager.get_available_nets()
         
-    def load_example(self):
-        """Load an example process algebra expression"""
-        example = """# Simple Process Algebra Example with Brackets
-    Process = (action.behavior).Process + choice.(done.STOP)
-    Query = event.(Process) + (function.going).Query
-    Main = (Process) | (Query)"""
-        self.text_edit.setText(example)    
-
+        if not nets:
+            QMessageBox.information(self, "No Nets", "No saved Petri nets found.")
+            return
+        
+        # Open load dialog
+        dialog = LoadDialog(nets, self)
+        if dialog.exec_() == QDialog.Accepted:
+            path = dialog.get_selected_path()
+            if path:
+                self.load_petri_net_from_file(path)
+    
     def open_save_dialog(self):
         """Open dialog to save current Petri net"""
         # Ensure there's a Petri net to save
@@ -242,20 +227,23 @@ class TextEditorWindow(QMainWindow):
                     QMessageBox.critical(self, "Save Error", f"Error saving Petri net: {str(e)}")
             else:
                 QMessageBox.warning(self, "Save Error", "Please enter a name for the Petri net.")
-
+    
+    def load_example(self):
+        """Load an example process algebra expression"""
+        example = """# Simple Process Algebra Example with Brackets
+Process = (action.behavior).Process + choice.(done.STOP)
+Query = event.(Process) + (function.going).Query
+Main = (Process) | (Query)"""
+        self.text_edit.setText(example)
     
     def setup_connections(self, petri_net_window, settings_window):
         """Set up connections to other windows"""
         self.petri_net_window = petri_net_window
         self.settings_window = settings_window
         
-        # Connect the visualize button to show the selector instead of directly visualizing
-        self.visualize_button.clicked.connect(self.show_petri_net_selector) 
-    #####
-  # Locate this method in ui/editor_window.py and replace it with this fixed version
-        
-        ####
-        # Calls the parser that builds the Petri nets
+        # Connect the visualize button to show the selector
+        self.visualize_button.clicked.connect(self.show_petri_net_selector)
+    
     def show_petri_net_selector(self):
         """Show the Petri net selector when the visualize button is clicked"""
         # Get the current text from the editor
@@ -296,26 +284,8 @@ class TextEditorWindow(QMainWindow):
             # Show the selector
             self.petri_net_window.selector_window.show_selector()
         else:
-            QMessageBox.information(self, "Empty Input", "Please enter a process algebra expression first.")   
-        
-            
-            def open_load_dialog(self):
-                """Open dialog to load a Petri net"""
-                # Get available nets
-                nets = self.file_manager.get_available_nets()
-                
-                if not nets:
-                    QMessageBox.information(self, "No Nets", "No saved Petri nets found.")
-                    return
-                
-                # Open load dialog
-                dialog = LoadDialog(nets, self)
-                if dialog.exec_() == QDialog.Accepted:
-                    path = dialog.get_selected_path()
-                    if path:
-                        self.load_petri_net_from_file(path)
-
-
+            QMessageBox.information(self, "Empty Input", "Please enter a process algebra expression first.")
+    
     def load_petri_net_from_file(self, file_path):
         """Load a Petri net from a file"""
         data = self.file_manager.load_petri_net(file_path)
@@ -368,11 +338,9 @@ class TextEditorWindow(QMainWindow):
                 QMessageBox.critical(self, "Load Error", f"Error loading Petri net: {str(e)}")
         else:
             QMessageBox.critical(self, "Load Error", f"Could not load Petri net from '{file_path}'")
-
-                
-         
+    
     def load_last_net(self):
-         """Try to load the last opened Petri net"""
-         last_net = self.file_manager.get_last_net()
-         if last_net:
-             self.load_petri_net_from_file(last_net)
+        """Try to load the last opened Petri net"""
+        last_net = self.file_manager.get_last_net()
+        if last_net:
+            self.load_petri_net_from_file(last_net)
