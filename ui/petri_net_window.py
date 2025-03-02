@@ -461,6 +461,7 @@ class PetriNetWindow(QMainWindow):
             # Redraw the scene
             self.scene.clear_and_draw_petri_net(self.parser)
             self.reset_view()
+            
     def start_node_drag(self, node_type, node_id):
         """Handle the start of node dragging"""
         self.node_being_dragged = True

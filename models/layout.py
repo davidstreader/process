@@ -9,7 +9,7 @@ class ForceDirectedLayout:
     def __init__(self):
         # Default layout parameters
         self.spring_constant = 0.1
-        self.repulsion_constant = 500.0
+        self.repulsion_constant = 800.0
         self.damping = 0.85
         self.min_distance = 100.0
         self.max_iterations = 100
@@ -103,6 +103,9 @@ class ForceDirectedLayout:
         """Apply a single iteration of the layout algorithm"""
         forces = self._calculate_forces(parser)
         self._update_positions(parser, forces, self.temperature)
+        
+    print(f"update single iteration")
+
     
     def _calculate_forces(self, parser):
         """Calculate forces for each node based on simplified model"""
