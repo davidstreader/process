@@ -28,11 +28,14 @@ class ProcessAlgebraParser:
         self.parsed_processes = set()
         self.parsing_errors = []
         # Keep petri_nets dictionary intact when resetting
-    
+    x_toggal = True
+    y_toggal = True
+     
     def get_id(self):
         self.current_id += 1
         return self.current_id - 1
         
+    ################
     def parse(self, text):
         self.reset()
         
@@ -52,19 +55,6 @@ class ProcessAlgebraParser:
                     name = name.strip()
                     expr = expr.strip()
                     self.process_definitions[name] = expr
-                    
-                    # Create place for process
-                    place_id = self.get_id()
-                    self.places.append({
-                        'id': place_id,
-                        'name': name,
-                        'tokens': 1,
-                        'x': 100,
-                        'y': 100 + len(self.process_places) * 150,
-                        'is_process': True,
-                        'process': name
-                    })
-                    self.process_places[name] = place_id
             
             # Find processes referenced by others
             for name, expr in self.process_definitions.items():
@@ -75,12 +65,30 @@ class ProcessAlgebraParser:
                             self.referenced_processes.add(other_name)
             
             # Find main processes (those not referenced)
-            for name, expr in self.process_definitions.items():
+            for name in self.process_definitions:
                 if name not in self.referenced_processes:
-                     self.main_processes[name] = expr   
+                    self.main_processes[name] = self.process_definitions[name]
             
-            # Build the Petri net for each main process
-            for i, process_name in enumerate(self.main_processes):
+            # Create places for all processes (with tokens only for main processes)
+            for name in self.process_definitions:
+                place_id = self.get_id()
+                # Only add tokens to main processes
+                tokens = 1 if name in self.main_processes else 0
+                
+                self.places.append({
+                    'id': place_id,
+                    'name': name,
+                    'tokens': tokens,
+                    'x': 100,
+                    'y': 100 + len(self.process_places) * 150,
+                    'is_process': True,
+                    'process': name,
+                    'is_main': name in self.main_processes
+                })
+                self.process_places[name] = place_id
+            
+            # Build the Petri net for each process
+            for i, process_name in enumerate(self.process_definitions):
                 if process_name in self.process_places:
                     self.build_petri_net(process_name, i)
             
@@ -96,7 +104,8 @@ class ProcessAlgebraParser:
             print(traceback.format_exc())
             self.parsing_errors.append(error_msg)
             return False
-
+    # ##############    
+    
     def store_current_petri_net(self, name, source_text):
         """Store the current Petri net data with its name"""
         net_id = name.lower().replace(" ", "_")
@@ -205,7 +214,8 @@ class ProcessAlgebraParser:
         
         # Keep track of current place for the sequence
         current_place_id = place_id
-        x_offset = 0
+        x_offset = 20
+        y_offset = 20
         
         for i, part in enumerate(parts):
             part = part.strip()
@@ -221,8 +231,8 @@ class ProcessAlgebraParser:
                         'id': stop_place_id,
                         'name': 'STOP',
                         'tokens': 0,
-                        'x': self.get_place_x(current_place_id) + 150 + x_offset,
-                        'y': y_pos,
+                        'x': self.get_place_x(current_place_id) + x_offset,
+                        'y': self.get_place_y(current_place_id) + y_offset,
                         'is_terminal': True,
                         'process': process_name
                     })
@@ -257,8 +267,8 @@ class ProcessAlgebraParser:
                             'id': new_place_id,
                             'name': "",
                             'tokens': 0,
-                            'x': self.get_place_x(new_place_id) + 150 + x_offset,
-                            'y': y_pos,
+                            'x': self.get_place_x(new_place_id) +  x_offset,
+                            'y': self.get_place_x(new_place_id) +  y_offset,
                             'is_terminal': False,
                             'process': process_name
                     })
@@ -279,8 +289,8 @@ class ProcessAlgebraParser:
         self.transitions.append({
             'id': transition_id,
             'name': action,
-            'x': self.get_place_x(place_id) + 75 + x_offset,
-            'y': y_pos,
+            'x': self.get_place_x(place_id) + x_offset,
+            'y': self.get_place_y(place_id) + x_offset,
             'process': process_name
         })
         
@@ -297,7 +307,25 @@ class ProcessAlgebraParser:
         """Get the x coordinate of a place"""
         for place in self.places:
             if place['id'] == place_id:
-                return place['x']
+                if  self.x_toggal :
+                    self.x_toggal = False
+                    return place['x'] + 100
+                else:
+                    self.x_toggal = True
+                    return place['x'] + 50
+               
+        return 100  # Default
+    def get_place_y(self, place_id):
+        """Get the x coordinate of a place"""
+        for place in self.places:
+            if place['id'] == place_id:
+                if  self.y_toggal :
+                    self.y_toggal = False
+                    return place['y'] + 100
+                else:
+                    self.y_toggal = True
+                    return place['y'] + 50
+               
         return 100  # Default
     
     def remove_outer_parentheses(self, expr):

@@ -3,7 +3,7 @@
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, 
                            QHBoxLayout, QTextEdit, QPushButton, 
                            QLabel, QMessageBox, QFileDialog, QMenu, QAction,
-                           QListWidget, QListWidgetItem, QDialog)
+                           QListWidget, QListWidgetItem, QDialog, QScrollArea)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
 import os
@@ -274,10 +274,11 @@ class TextEditorWindow(QMainWindow):
                 
                 QMessageBox.warning(self, "Parsing Error", error_message)
                 return
-            print(f"editorWindow Parser: {self.parser.current_id}")  
-            print(f"editorWindow Parser: {self.parser.transitions}")
-            # Successful parse - update the selector's parser reference
+            
+            # Successful parse - ensure parser is shared with both windows
+            self.petri_net_window.parser = self.parser
             self.petri_net_window.selector_window.parser = self.parser
+            
             # Load the parser definitions into the selector
             self.petri_net_window.selector_window.load_parser_definitions()
             
@@ -288,32 +289,31 @@ class TextEditorWindow(QMainWindow):
                 expression=text
             )
 
+            # Connect the net_selected signal if not already connected
+            if not self.petri_net_window.selector_window.net_selected.receivers(self.petri_net_window.on_petri_net_selected):
+                self.petri_net_window.selector_window.net_selected.connect(self.petri_net_window.on_petri_net_selected)
+
             # Show the selector
             self.petri_net_window.selector_window.show_selector()
         else:
-            QMessageBox.information(self, "Empty Input", "Please enter a process algebra expression first.")
-        #def show_petri_net_selector():
-        #def show_petri_net_selector(self, *args):
-    
-    
+            QMessageBox.information(self, "Empty Input", "Please enter a process algebra expression first.")   
         
-    
-        
-        def open_load_dialog(self):
-            """Open dialog to load a Petri net"""
-            # Get available nets
-            nets = self.file_manager.get_available_nets()
             
-            if not nets:
-                QMessageBox.information(self, "No Nets", "No saved Petri nets found.")
-                return
-            
-            # Open load dialog
-            dialog = LoadDialog(nets, self)
-            if dialog.exec_() == QDialog.Accepted:
-                path = dialog.get_selected_path()
-                if path:
-                    self.load_petri_net_from_file(path)
+            def open_load_dialog(self):
+                """Open dialog to load a Petri net"""
+                # Get available nets
+                nets = self.file_manager.get_available_nets()
+                
+                if not nets:
+                    QMessageBox.information(self, "No Nets", "No saved Petri nets found.")
+                    return
+                
+                # Open load dialog
+                dialog = LoadDialog(nets, self)
+                if dialog.exec_() == QDialog.Accepted:
+                    path = dialog.get_selected_path()
+                    if path:
+                        self.load_petri_net_from_file(path)
 
 
     def load_petri_net_from_file(self, file_path):

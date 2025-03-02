@@ -177,7 +177,6 @@ class PetriNetWindow(QMainWindow):
         self.view_widget.setVisible(True)
     #####
     # Update this method in ui/petri_net_window.py
-
     def on_petri_net_selected(self, expression):
         """Handle selection of a Petri net from the selector"""
         print(f"Selected Petri net: {expression}")
@@ -209,7 +208,7 @@ class PetriNetWindow(QMainWindow):
             display_expr = expression.split('\n')[0]
             if len(display_expr) > 40:
                 display_expr = display_expr[:37] + "..."
-                self.setWindowTitle(f"Petri Net: {display_expr}")
+            self.setWindowTitle(f"Petri Net: {display_expr}")
             
             # Update the visualization
             self.update_petri_net(self.parser)
@@ -217,18 +216,19 @@ class PetriNetWindow(QMainWindow):
             # Show the visualization screen
             self.show_visualization_screen()
             
-            # Important: share the parsed process definitions with the selector
-            # This ensures that the selector can show the named processes from the parser
-            self.selector_window.parser = self.parser
-            
             # Make sure the window is visible and raised
             self.show()
             self.raise_()
         else:
-            QMessageBox.warning(self, "Parsing Error", 
-                            "Could not parse the selected process algebra expression.")
-    # In ui/petri_net_window.py, replace the update_petri_net method with this:
+            # Get parsing errors
+            errors = self.parser.get_parsing_errors()
+            error_message = "Unable to parse the process algebra expression:\n\n"
+            for error in errors:
+                error_message += f"• {error}\n"
+            
+            QMessageBox.warning(self, "Parsing Error", error_message)
 
+            
     def update_petri_net(self, parser, file_path=None):
         """Update the Petri net visualization with the parser data"""
         # Store a reference to the parser for later use
