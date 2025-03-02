@@ -622,7 +622,7 @@ class MainWindow(QMainWindow):
     def clear_visualizations(self):
         """Clear all visualization widgets except the main one"""
         # Remove all widgets from the right pane layout except the first one (main visualization)
-        while self.right_pane_layout.count() > 1:
+        while self.right_pane_layout.count() > 1: 
             item = self.right_pane_layout.itemAt(1)
             if item:
                 widget = item.widget()
