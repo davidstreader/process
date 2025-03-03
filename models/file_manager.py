@@ -122,23 +122,7 @@ class FileManager:
             source_code.append(f"{process_name} = {definition}")
         return "\n".join(source_code)
     
-    def load_petri_net(self, file_path):
-        """Load a Petri net from a JSON file"""
-        path = Path(file_path)
-        if not path.exists():
-            return None
-        
-        try:
-            with open(path, 'r') as f:
-                data = json.load(f)
-            
-            # Update last net
-            self.set_last_net(str(path))
-            
-            return data
-        except Exception as e:
-            print(f"Error loading file: {str(e)}")
-            return None
+
     
     def get_available_nets(self):
         """Get a list of available Petri net files"""
@@ -155,3 +139,58 @@ class FileManager:
         nets.sort(key=lambda x: x['modified'], reverse=True)
         
         return nets
+    
+
+    #######################
+    def load_petri_net(self, file_path):
+        """Load a Petri net from a JSON file with backward compatibility for arcs without process names"""
+        path = Path(file_path)
+        if not path.exists():
+            return None
+        
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+            
+            # Add backward compatibility for arc process names
+            if 'arcs' in data:
+                # Create a mapping of IDs to process names for backward compatibility
+                process_map = {}
+                
+                # Add place processes to the map
+                if 'places' in data:
+                    for place in data['places']:
+                        if 'id' in place and 'process' in place:
+                            process_map[place['id']] = place['process']
+                
+                # Add transition processes to the map
+                if 'transitions' in data:
+                    for transition in data['transitions']:
+                        if 'id' in transition and 'process' in transition:
+                            process_map[transition['id']] = transition['process']
+                
+                # Update arcs with process information if missing
+                for arc in data['arcs']:
+                    if 'process' not in arc:
+                        source_id = arc.get('source_id')
+                        target_id = arc.get('target_id')
+                        
+                        # Try to get process name from source
+                        if source_id in process_map:
+                            arc['process'] = process_map[source_id]
+                        # If not found in source, try target
+                        elif target_id in process_map:
+                            arc['process'] = process_map[target_id]
+                        # If neither source nor target has process info, use the file name
+                        else:
+                            net_name = path.stem.replace("_", " ").title()
+                            arc['process'] = net_name
+            
+            # Update last net
+            self.set_last_net(str(path))
+            
+            return data
+        except Exception as e:
+            print(f"Error loading file: {str(e)}")
+            return None
+    #######################
