@@ -16,6 +16,7 @@ class ProcessAlgebraParser:
         self.main_processes = {}
         self.petri_nets = {}  # Dictionary to store petri nets with their data
         self.current_net = None  # Track the current net being viewed
+        self.ref_process = {}
     
     def reset(self):
         self.places = []
@@ -63,7 +64,10 @@ class ProcessAlgebraParser:
                         pattern = r'\b' + re.escape(other_name) + r'\b'
                         if re.search(pattern, expr):
                             self.referenced_processes.add(other_name)
-            
+                            self.ref_process[other_name]   = name
+                            
+            print(f"ref_process: {self.ref_process}")
+
             # Find main processes (those not referenced)
             for name in self.process_definitions:
                 if name not in self.referenced_processes:
@@ -74,7 +78,7 @@ class ProcessAlgebraParser:
                 place_id = self.get_id()
                 # Only add tokens to main processes
                 tokens = 1 if name in self.main_processes else 0
-                
+                p_name = name if name in self.main_processes else self.ref_process[name]
                 self.places.append({
                     'id': place_id,
                     'name': name,
@@ -82,7 +86,7 @@ class ProcessAlgebraParser:
                     'x': 100,
                     'y': 100 + len(self.process_places) * 150,
                     'is_process': True,
-                    'process': name,
+                    'process': p_name,
                     'is_main': name in self.main_processes
                 })
                 self.process_places[name] = place_id
@@ -93,9 +97,16 @@ class ProcessAlgebraParser:
                     self.build_petri_net(process_name, i)
             
             # Create petri_net entry for the current parse
-            net_name = next(iter(self.main_processes)) if self.main_processes else "Unnamed Net"
-            self.store_current_petri_net(net_name, text)
-            
+
+            # Iterate over key-value pairs
+            for key, value in self.main_processes.items():
+                      print(f"{key}: {value}")
+                      self.store_window_petri_net(key, value)
+            #net_name = next(iter(self.main_processes)) if self.main_processes else "Unnamed Net"
+            #self.store_window_petri_net(net_name, text)
+            #print(f"petri_nets: {self.petri_nets}")
+            #self.show_petri_nets(self.petri_nets)
+            print(f"REF_process: {self.ref_process}")
             return True
         except Exception as e:
             import traceback
@@ -106,32 +117,79 @@ class ProcessAlgebraParser:
             return False
     # ##############    
     
-    def store_current_petri_net(self, name, source_text):
-        """Store the current Petri net data with its name"""
-        print(f"parser Storing current Petri net with name {name}")
+    def store_window_petri_net(self, name, source_text):
+        """Store the current Petri net data with its name, filtered by process name"""
+        self.petri_nets = {}
+        print(f"Storing current Petri net with name {name}")
         net_id = name.lower().replace(" ", "_")
         
-        # Create a deep copy of the current state
+        # Create a deep copy of the current state with filtering
         import copy
         
+        # Filter places, transitions, and arcs that belong to this process
+        filtered_places = []
+        filtered_transitions = []
+        filtered_arcs = []
+        
+        # First collect all places for this process
+        process_place_ids = set()
+        for place in self.places:
+            if place.get('process') == name or place.get('name') == name:
+                filtered_places.append(copy.deepcopy(place))
+                process_place_ids.add(place['id'])
+        
+        # Next collect all transitions for this process
+        process_transition_ids = set()
+        for transition in self.transitions:
+            if transition.get('process') == name:
+                filtered_transitions.append(copy.deepcopy(transition))
+                process_transition_ids.add(transition['id'])
+        
+        # Finally collect all arcs that connect places and transitions in this process
+        for arc in self.arcs:
+            source_id = arc['source_id']
+            target_id = arc['target_id']
+            
+            # Check if this arc connects elements in our process
+            source_in_process = (arc['is_place_to_transition'] and source_id in process_place_ids) or \
+                            (not arc['is_place_to_transition'] and source_id in process_transition_ids)
+            
+            target_in_process = (not arc['is_place_to_transition'] and target_id in process_place_ids) or \
+                            (arc['is_place_to_transition'] and target_id in process_transition_ids)
+            
+            if source_in_process and target_in_process:
+                # Add the process name to the arc
+                arc_copy = copy.deepcopy(arc)
+                arc_copy['process'] = name
+                filtered_arcs.append(arc_copy)
+        
         # Store all the data needed to recreate this net
-        self.petri_nets[net_id] = {
+        self.petri_nets[name] = {
             'name': name,
             'source_text': source_text,
-            'places': copy.deepcopy(self.places),
-            'transitions': copy.deepcopy(self.transitions),
-            'arcs': copy.deepcopy(self.arcs),
+            'places': filtered_places,
+            'transitions': filtered_transitions,
+            'arcs': filtered_arcs,
             'process_definitions': copy.deepcopy(self.process_definitions),
             'process_places': copy.deepcopy(self.process_places),
             'main_processes': copy.deepcopy(self.main_processes),
             'last_id': self.current_id
         }
-        
-        # Set as current net
-        self.current_net = net_id
+        print(f"Stored Petri net with ID {name}")
+        self.show_petri_nets(self.petri_nets)
+       
         
         return net_id
 
+    def show_petri_nets(self,nets):
+        """Return a list of all stored Petri nets with their metadata"""
+        print(f"Showing all stored Petri nets")
+        for net_id, data in self.petri_nets.items():
+            print(f"Net ID: {net_id}")
+            for key, value in data.items():
+                 print(f"  {key}: {value}")
+       # return [{'id': net_id, 'name': data['name']} for net_id, data in self.petri_nets.items()]
+    
     def load_petri_net(self, net_id):
         """Load a previously stored Petri net as the current net"""
         if net_id not in self.petri_nets:
@@ -150,8 +208,7 @@ class ProcessAlgebraParser:
         self.main_processes = net_data['main_processes']
         self.current_id = net_data['last_id']
         
-        # Set as current net
-        self.current_net = net_id
+        
         
         return True
 
@@ -207,7 +264,29 @@ class ProcessAlgebraParser:
                 self.parse_sequence(choice.strip(), place_id, process_name, base_y + i * 80)
         else:
             self.parse_sequence(expr, place_id, process_name, base_y)
-    
+    #####################
+    def create_action_transition(self, action, place_id, process_name, y_pos, x_offset=0):
+        """Create a transition for an action"""
+        # Create transition
+        transition_id = self.get_id()
+        self.transitions.append({
+            'id': transition_id,
+            'name': action,
+            'x': self.get_place_x(place_id) + x_offset,
+            'y': self.get_place_y(place_id) + x_offset,
+            'process': process_name
+        })
+        
+        # Connect place to transition
+        self.arcs.append({
+            'source_id': place_id,
+            'target_id': transition_id,
+            'is_place_to_transition': True,
+            'process': process_name  # Add process name to the arc
+        })
+        
+        return transition_id
+
     def parse_sequence(self, sequence, place_id, process_name, y_pos):
         """Parse a sequence like a.b.P"""
         sequence = self.remove_outer_parentheses(sequence)
@@ -226,9 +305,11 @@ class ProcessAlgebraParser:
                 
             if len(parts) > i+1:
                 look_ahead = parts[i+1]
-                 # Special handling for STOP
+                p_name = process_name if process_name in self.main_processes else self.ref_process[process_name]
+                   
+                # Special handling for STOP
                 if look_ahead == 'STOP':
-                # Create STOP place
+                    # Create STOP place
                     stop_place_id = self.get_id()
                     self.places.append({
                         'id': stop_place_id,
@@ -237,75 +318,61 @@ class ProcessAlgebraParser:
                         'x': self.get_place_x(current_place_id) + x_offset,
                         'y': self.get_place_y(current_place_id) + y_offset,
                         'is_terminal': True,
-                        'process': process_name
+                        'process': p_name
                     })
-                    transition_id = self.create_action_transition(part, current_place_id, process_name, y_pos, x_offset)            
-                 # Connect current place to transition
+                    transition_id = self.create_action_transition(part, current_place_id, p_name, y_pos, x_offset)            
+                    # Connect transition to STOP place
                     self.arcs.append({
                         'source_id': transition_id,
                         'target_id': stop_place_id,
-                        'is_place_to_transition': False
+                        'is_place_to_transition': False,
+                        'process': p_name  # Add process name to the arc
                     })
                     break
-                elif look_ahead  in self.process_definitions : # process the end of sequence
+                elif look_ahead in self.process_definitions: # process the end of sequence
                     local_process_id = self.process_places[look_ahead]
-                    transition_id = self.create_action_transition(part, current_place_id, process_name, y_pos, x_offset)
-            
+                    transition_id = self.create_action_transition(part, current_place_id, p_name, y_pos, x_offset)
+                   # p_name = process_name if process_name in self.main_processes else self.ref_process[process_name]
+                    
                     self.arcs.append({
                         'source_id': transition_id,
                         'target_id': self.process_places[look_ahead],
-                        'is_place_to_transition': False
+                        'is_place_to_transition': False,
+                        'process': p_name  # Add process name to the arc
                     })
                     break
 
-            if len(parts)== i +1: #last event 
-                    transition_id = self.create_action_transition(part, current_place_id, process_name, y_pos, x_offset)                               
+            if len(parts) == i + 1: #last event 
+                    transition_id = self.create_action_transition(part, current_place_id, p_name, y_pos, x_offset)                               
                     print(f"Created arc from {current_place_id} to {transition_id}")
                     #adds arc from current place to transition  
-            if len(parts)> i +1:
-                    transition_id = self.create_action_transition(part, current_place_id, process_name, y_pos, x_offset)
+            if len(parts) > i + 1:
+                    transition_id = self.create_action_transition(part, current_place_id, p_name, y_pos, x_offset)
                     
                     new_place_id = self.get_id()
                     self.places.append({
                             'id': new_place_id,
                             'name': "",
                             'tokens': 0,
-                            'x': self.get_place_x(new_place_id) +  x_offset,
-                            'y': self.get_place_x(new_place_id) +  y_offset,
+                            'x': self.get_place_x(new_place_id) + x_offset,
+                            'y': self.get_place_x(new_place_id) + y_offset,
                             'is_terminal': False,
-                            'process': process_name
+                            'process': p_name
                     })
                     self.arcs.append({
                             'source_id': transition_id, #previous transition to new place
                             'target_id': new_place_id,
-                            'is_place_to_transition': False  
+                            'is_place_to_transition': False,
+                            'process': p_name  # Add process name to the arc
                     })
                     current_place_id = new_place_id                      
                 
                     x_offset += 100
-                    continue           
-                
-    def create_action_transition(self, action, place_id, process_name, y_pos, x_offset=0):
-        """Create a transition for an action"""
-        # Create transition
-        transition_id = self.get_id()
-        self.transitions.append({
-            'id': transition_id,
-            'name': action,
-            'x': self.get_place_x(place_id) + x_offset,
-            'y': self.get_place_y(place_id) + x_offset,
-            'process': process_name
-        })
-        
-        # Connect place to transition
-        self.arcs.append({
-            'source_id': place_id,
-            'target_id': transition_id,
-            'is_place_to_transition': True
-        })
-        
-        return transition_id
-    
+                    continue
+
+    #####################
+ 
+ 
     def get_place_x(self, place_id):
         """Get the x coordinate of a place"""
         for place in self.places:

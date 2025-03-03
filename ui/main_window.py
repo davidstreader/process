@@ -131,31 +131,30 @@ class MainWindow(QMainWindow):
         self.load_last_net()
 
         
-        def show_process(self, process_name):
-            """Show a specific process in a new visualization area"""
-            
-            
-            # Create a subset of the parser data for this process
-            self.parser = self.create_process_subset(process_name)
-            
-            # Draw the Petri net for this process
-            self.scene.clear_and_draw_petri_net(self.parser)
-            
-            
-           # self.reset_specific_view(view, scene)
+    def show_process(self, process_name):
+        """Show a specific process in a new visualization area"""
+                
+        # Create a subset of the parser data for this process
+        self.parser = self.create_process_subset(process_name)
+        
+        # Draw the Petri net for this process
+        self.scene.clear_and_draw_petri_net(self.parser)
+        
+        
+        # self.reset_specific_view(view, scene)
 
-        def clear_visualizations(self):
-            """Clear all visualization widgets except the main one"""
-            self.scene.clear()
-            # Remove all widgets from the scroll layout except the first one (main visualization)
-            while self.scroll_layout.count() > 1:
-                item = self.scroll_layout.itemAt(1)
-                if item:
-                    widget = item.widget()
-                    if widget:
-                        widget.deleteLater()
-                    self.scroll_layout.removeItem(item)
-            
+    def clear_visualizations(self):
+        """Clear all visualization widgets except the main one"""
+        self.scene.clear()
+        # Remove all widgets from the scroll layout except the first one (main visualization)
+        while self.scroll_layout.count() > 1:
+            item = self.scroll_layout.itemAt(1)
+            if item:
+                widget = item.widget()
+                if widget:
+                    widget.deleteLater()
+                self.scroll_layout.removeItem(item)
+        
     def create_menu_bar(self):
         """Create the application menu bar"""
         menubar = self.menuBar()
@@ -297,14 +296,7 @@ class MainWindow(QMainWindow):
         process_name = action.data()
         self.show_process(process_name)
 
-    def show_process(self, process_name):
-        """Show a specific process NOT in a new visualization area"""
-       
-        # Create a subset of the parser data for this process
-        process_parser = self.create_process_subset(process_name)
-        
-        # Draw the Petri net for this process
-        self.scene.clear_and_draw_petri_net(process_parser)
+  
         
     
     def reset_specific_view(self, view, scene):
