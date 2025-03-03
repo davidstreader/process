@@ -11,101 +11,13 @@ from ui.petri_net_scene import PetriNetScene, DraggableScene
 from models.parser import ProcessAlgebraParser
 from models.layout import ForceDirectedLayout
 from models.file_manager import FileManager
-
-class SaveDialog(QDialog):
-    """Dialog for saving Petri nets with a name"""
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Save Petri Net")
-        self.resize(300, 100)
+from models.parser import ProcessAlgebraParser
+       
         
-        layout = QVBoxLayout(self)
-        
-        # Add name label and text field
-        layout.addWidget(QLabel("Enter name for Petri net:"))
-        self.name_edit = QTextEdit()
-        self.name_edit.setPlaceholderText("Enter name...")
-        self.name_edit.setMaximumHeight(50)
-        layout.addWidget(self.name_edit)
-        
-        # Add buttons
-        button_layout = QHBoxLayout()
-        self.save_button = QPushButton("Save")
-        self.cancel_button = QPushButton("Cancel")
-        button_layout.addWidget(self.save_button)
-        button_layout.addWidget(self.cancel_button)
-        layout.addLayout(button_layout)
-        
-        # Connect signals
-        self.save_button.clicked.connect(self.accept)
-        self.cancel_button.clicked.connect(self.reject)
-        self.add_resize_controls()
-        self.add_resize_menu_actions()
-        self.connect_splitter_signals()
-
-        # Update MainWindow.__init__ method to add these changes
-
-        # Replace the right pane setup with this:
-        # Right pane: Petri Net visualization
-        self.right_pane = QWidget()
-        self.right_pane_layout = QVBoxLayout(self.right_pane)
-
-        # Add title
-        self.right_pane_layout.addWidget(QLabel("<b>Petri Net Visualization</b>"))
-
-        # Create a container for the main visualization
-        self.main_viz_container = QWidget()
-        main_viz_layout = QVBoxLayout(self.main_viz_container)
-
-        # Create the Petri net scene and view
-        self.scene = DraggableScene(self)
-        self.view = QGraphicsView(self.scene)
-        self.view.setRenderHint(QPainter.Antialiasing)
-        main_viz_layout.addWidget(self.view)
-
-        # Layout controls
-        layout_controls = QHBoxLayout()
-        self.enable_layout_checkbox = QCheckBox("Enable Spring Layout")
-        self.apply_layout_button = QPushButton("Apply Full Layout")
-        self.settings_button = QPushButton("Layout Settings")
-        layout_controls.addWidget(self.enable_layout_checkbox)
-        layout_controls.addWidget(self.apply_layout_button)
-        layout_controls.addWidget(self.settings_button)
-        main_viz_layout.addLayout(layout_controls)
-
-        # Zoom controls
-        zoom_controls = QHBoxLayout()
-        self.zoom_in_button = QPushButton("Zoom In")
-        self.zoom_out_button = QPushButton("Zoom Out")
-        self.reset_view_button = QPushButton("Reset View")
-        zoom_controls.addWidget(self.zoom_in_button)
-        zoom_controls.addWidget(self.zoom_out_button)
-        zoom_controls.addWidget(self.reset_view_button)
-        main_viz_layout.addLayout(zoom_controls)
-
-        # Add the main visualization to the right pane
-        self.right_pane_layout.addWidget(self.main_viz_container)
-
-        # Add the right pane to the splitter
-        self.splitter.addWidget(self.right_pane)
 
 
-        # In the create_menu_bar method, replace the visualize menu creation with:
-        self.create_visualize_menu()
-
-
-        # In the visualize_petri_net method, add this at the end:
-        # Update the main processes menu
-        self.update_main_processes_menu()
-
-        # Clear any previous process visualizations
-        #self.clear_visualizations() 
-        self.right_pane.clear()
-    
-    def get_name(self):
-        """Get the entered name"""
-        return self.name_edit.toPlainText().strip()
+ 
+ 
 
 class MainWindow(QMainWindow):
     """Main application window with split pane layout"""
@@ -124,6 +36,7 @@ class MainWindow(QMainWindow):
         
         # Create parser and layout algorithm
         self.parser = ProcessAlgebraParser()
+        # process_parser = ProcessAlgebraParser()
         self.layout_algorithm = ForceDirectedLayout()
         
         # Create splitter for the two panes
@@ -217,68 +130,16 @@ class MainWindow(QMainWindow):
         # Try to load last net
         self.load_last_net()
 
-            # Add QScrollArea import
-
-        # Update the right pane to use a scroll area
-        # Right pane: Petri Net visualization with scroll area
-        # self.right_pane = QWidget()
-        # self.right_pane_layout = QVBoxLayout(self.right_pane)
-
-        # # Add scroll area for multiple visualizations
-        # self.scroll_area = QScrollArea()
-        # self.scroll_area.setWidgetResizable(True)
-        # self.scroll_content = QWidget()
-        # self.scroll_layout = QVBoxLayout(self.scroll_content)
-        # self.scroll_area.setWidget(self.scroll_content)
-        # self.right_pane_layout.addWidget(self.scroll_area)
-
-        # Add title
-        # self.scroll_layout.addWidget(QLabel("<b>Petri Net scroll_layout</b>"))
-
-        # Create a container for the main visualization
-        # self.main_viz_container = QWidget()
-        # main_viz_layout = QVBoxLayout(self.main_viz_container)
-
-        # # Create the Petri net scene and view
-        # self.scene = DraggableScene(self)
-        # self.view = QGraphicsView(self.scene)
-        # self.view.setRenderHint(QPainter.Antialiasing)
-        # main_viz_layout.addWidget(self.view)
-
-        # # Layout controls
-        # layout_controls = QHBoxLayout()
-        # self.enable_layout_checkbox = QCheckBox("Enable Spring Layout")
-        # self.apply_layout_button = QPushButton("Apply Full Layout")
-        # self.settings_button = QPushButton("Layout Settings")
-        # layout_controls.addWidget(self.enable_layout_checkbox)
-        # layout_controls.addWidget(self.apply_layout_button)
-        # layout_controls.addWidget(self.settings_button)
-        # main_viz_layout.addLayout(layout_controls)
-
-        # # Zoom controls
-        # zoom_controls = QHBoxLayout()
-        # self.zoom_in_button = QPushButton("Zoom In")
-        # self.zoom_out_button = QPushButton("Zoom Out")
-        # self.reset_view_button = QPushButton("Reset View")
-        # zoom_controls.addWidget(self.zoom_in_button)
-        # zoom_controls.addWidget(self.zoom_out_button)
-        # zoom_controls.addWidget(self.reset_view_button)
-        # main_viz_layout.addLayout(zoom_controls)
-
-        # # Add the main visualization to the scroll layout
-        # self.scroll_layout.addWidget(self.main_viz_container)
-
-        # Update these methods to use the scroll layout instead of right_pane_layout
-
+        
         def show_process(self, process_name):
             """Show a specific process in a new visualization area"""
             
             
             # Create a subset of the parser data for this process
-            process_parser = self.create_process_subset(process_name)
+            self.parser = self.create_process_subset(process_name)
             
             # Draw the Petri net for this process
-            self.scene.clear_and_draw_petri_net(process_parser)
+            self.scene.clear_and_draw_petri_net(self.parser)
             
             
            # self.reset_specific_view(view, scene)
@@ -431,54 +292,17 @@ class MainWindow(QMainWindow):
         self.show_process(process_name)
 
     def show_process(self, process_name):
-        """Show a specific process in a new visualization area"""
-        # Create a new visualization area
-        viz_widget = QWidget()
-        viz_layout = QVBoxLayout(viz_widget)
-        
-        # Add a label with the process name
-        viz_layout.addWidget(QLabel(f"<b>Process: {process_name}</b>"))
-        
-        # Create scene and view for this process
-        scene = DraggableScene(self)
-        view = QGraphicsView(scene)
-        view.setRenderHint(QPainter.Antialiasing)
-        viz_layout.addWidget(view)
-        
+        """Show a specific process NOT in a new visualization area"""
+       
         # Create a subset of the parser data for this process
         process_parser = self.create_process_subset(process_name)
         
         # Draw the Petri net for this process
-        scene.clear_and_draw_petri_net(process_parser)
+        self.scene.clear_and_draw_petri_net(process_parser)
         
-        # Set a reasonable view size
-        view.setMinimumHeight(300)
-        view.setMaximumHeight(400)
-        
-        # Add zoom controls for this view
-        zoom_layout = QHBoxLayout()
-        zoom_in_btn = QPushButton("Zoom In")
-        zoom_out_btn = QPushButton("Zoom Out")
-        reset_view_btn = QPushButton("Reset View")
-        
-        zoom_layout.addWidget(zoom_in_btn)
-        zoom_layout.addWidget(zoom_out_btn)
-        zoom_layout.addWidget(reset_view_btn)
-        viz_layout.addLayout(zoom_layout)
-        
-        # Connect zoom buttons
-        zoom_in_btn.clicked.connect(lambda: view.scale(1.2, 1.2))
-        zoom_out_btn.clicked.connect(lambda: view.scale(0.8, 0.8))
-        reset_view_btn.clicked.connect(lambda: self.reset_specific_view(view, scene))
-        
-        # Add the visualization widget to the right pane's layout
-        self.scroll_layout.addWidget(viz_widget)
-        
-        # Reset view to show all content
-        self.reset_specific_view(view, scene)
-
+    
     def reset_specific_view(self, view, scene):
-        scene.clear()
+        self.scene.clear()
         print(f"Resetting view for scene ")
         # """Reset a specific view to fit its scene content"""
         # view.resetTransform()
@@ -487,9 +311,6 @@ class MainWindow(QMainWindow):
     def create_process_subset(self, process_name):
         """Create a subset of the parser data focusing on the given process"""
         # Create a new parser instance
-        from models.parser import ProcessAlgebraParser
-        process_parser = ProcessAlgebraParser()
-        
         # Find the place for this process
         process_place_id = None
         for place in self.parser.places:
@@ -498,11 +319,11 @@ class MainWindow(QMainWindow):
                 # Copy the place, ensure it has a token
                 new_place = place.copy()
                 new_place['tokens'] = 1  # Ensure it has a token as the entry point
-                process_parser.places.append(new_place)
+                self.parser.places.append(new_place)
                 break
         
-        if not process_place_id:
-            return process_parser
+        # if not process_place_id:
+        #     return process_parser
         
         # Find connected components (places and transitions)
         connected_ids = {process_place_id}
@@ -549,11 +370,11 @@ class MainWindow(QMainWindow):
                         for transition in self.parser.transitions:
                             if transition['id'] == transition_id:
                                 # Add the transition to our subset
-                                process_parser.transitions.append(transition.copy())
+                                self.parser.transitions.append(transition.copy())
                                 break
                         
                         # Add the arc
-                        process_parser.arcs.append(arc.copy())
+                        self.parser.arcs.append(arc.copy())
                         
                         # Find places connected from this transition
                         for out_arc in self.parser.arcs:
@@ -566,24 +387,24 @@ class MainWindow(QMainWindow):
                                     for place in self.parser.places:
                                         if place['id'] == target_place_id:
                                             # Add the place to our subset
-                                            process_parser.places.append(place.copy())
+                                            self.parser.places.append(place.copy())
                                             break
                                     
                                     # Add the arc
-                                    process_parser.arcs.append(out_arc.copy())
+                                    self.parser.arcs.append(out_arc.copy())
                                     
                                     # Add to frontier for further exploration
                                     frontier.append(target_place_id)
         
         # Set the current ID to the highest ID + 1
         max_id = -1
-        for place in process_parser.places:
+        for place in self.parser.places:
             max_id = max(max_id, place['id'])
-        for transition in process_parser.transitions:
+        for transition in self.parser.transitions:
             max_id = max(max_id, transition['id'])
-        process_parser.current_id = max_id + 1
+        self.parser.current_id = max_id + 1
         
-        return process_parser
+        return self.parser
 
     def show_all_main_processes(self):
         """Show all main processes in separate visualization areas"""
@@ -658,18 +479,7 @@ class MainWindow(QMainWindow):
             return
         
         # Open save dialog
-        dialog = SaveDialog(self)
-        if dialog.exec_() == QDialog.Accepted:
-            name = dialog.get_name()
-            if name:
-                try:
-                    path = self.file_manager.save_petri_net(self.parser, name)
-                    QMessageBox.information(self, "Save Successful", f"Petri net saved as '{name}'")
-                except Exception as e:
-                    QMessageBox.critical(self, "Save Error", f"Error saving Petri net: {str(e)}")
-            else:
-                QMessageBox.warning(self, "Save Error", "Please enter a name for the Petri net.")
-    
+      
     def load_example(self):
         """Load an example process algebra expression"""
         example = """# Simple Process Algebra Example with Brackets

@@ -108,6 +108,7 @@ class ProcessAlgebraParser:
     
     def store_current_petri_net(self, name, source_text):
         """Store the current Petri net data with its name"""
+        print(f"parser Storing current Petri net with name {name}")
         net_id = name.lower().replace(" ", "_")
         
         # Create a deep copy of the current state
@@ -157,6 +158,7 @@ class ProcessAlgebraParser:
     def _build_all_referenced_processes(self):
         """Build all referenced processes to ensure completeness"""
         # Make a list of all processes to ensure they're fully parsed
+        print(f" I think _build_all_referenced_processes is not needed")
         all_processes = set(self.process_definitions.keys())
         for process_name in all_processes:
             if process_name not in self.parsed_processes and process_name in self.process_places:
@@ -166,7 +168,7 @@ class ProcessAlgebraParser:
     
     def build_petri_net(self, process_name, index):
         """Build the Petri net for a process definition"""
-        print(f"Building Petri net for process {process_name}")
+        print(f"parser Building Petri net for process {process_name}")
         
         # Mark this process as parsed
         self.parsed_processes.add(process_name)
@@ -191,6 +193,7 @@ class ProcessAlgebraParser:
             if ref_process not in self.parsed_processes and ref_process in self.process_places:
                 # Use a new index based on current parsed processes
                 ref_index = len(self.parsed_processes)
+                print(f"Building referenced process {ref_process} at index {ref_index}")
                 self.build_petri_net(ref_process, ref_index)
 
     def parse_expression(self, expr, place_id, process_name, base_y):
