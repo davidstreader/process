@@ -69,7 +69,9 @@ class PetriNetScene(QGraphicsScene):
         
         # Draw arcs (arrows)
         self.draw_arcs(parser)
-        
+    # Add bounding box with light shading
+        self.add_bounding_box()
+      
         # Set scene rect to fit all items with padding
         self.setSceneRect(self.itemsBoundingRect().adjusted(-50, -50, 50, 50))
 
@@ -423,7 +425,8 @@ class DraggableScene(PetriNetScene):
             self.node_related_items[f"t{transition_id}"] = {
                 "labels": []
             }
-        
+          # Add bounding box with light shading
+        self.add_bounding_box()
         # Call the parent implementation after initialization
         super().clear_and_draw_petri_net(parser)
     
@@ -489,6 +492,23 @@ class DraggableScene(PetriNetScene):
         
         return rect
     
+
+    def add_bounding_box(self):
+        """Add a bounding box around all Petri net elements with light shading"""
+        # Get the current bounding rectangle of all items
+        if not self.items():
+            return  # No items to create a box around
+            
+        bounds = self.itemsBoundingRect().adjusted(-20, -20, 20, 20)
+        
+        # Create background rectangle
+        background = QGraphicsRectItem(bounds)
+        background.setPen(QPen(QColor(180, 180, 180), 1, Qt.DashLine))
+        background.setBrush(QBrush(QColor(240, 240, 240, 60)))  # Very light gray with transparency
+        background.setZValue(-100)  # Ensure it's behind all other items
+        self.addItem(background)
+    
+        return background
     def mousePressEvent(self, event):
         """Handle mouse press for dragging nodes"""
         item = self.itemAt(event.scenePos(), QTransform())

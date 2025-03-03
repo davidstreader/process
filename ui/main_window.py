@@ -11,7 +11,7 @@ from ui.petri_net_scene import PetriNetScene, DraggableScene
 from models.parser import ProcessAlgebraParser
 from models.layout import ForceDirectedLayout
 from models.file_manager import FileManager
-from models.parser import ProcessAlgebraParser
+
        
         
 
@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
         # Right pane: Petri Net visualization
         self.right_pane = QWidget()
         right_layout = QVBoxLayout(self.right_pane)
-        
+      
         right_layout.addWidget(QLabel("<b>Petri Net right_pane</b>"))
         
         # Create the Petri net scene and view
@@ -87,14 +87,14 @@ class MainWindow(QMainWindow):
         right_layout.addLayout(layout_controls)
         
         # Zoom controls
-        zoom_controls = QHBoxLayout()
-        self.zoom_in_button = QPushButton("Zoom In")
-        self.zoom_out_button = QPushButton("Zoom Out")
-        self.reset_view_button = QPushButton("Reset View")
-        zoom_controls.addWidget(self.zoom_in_button)
-        zoom_controls.addWidget(self.zoom_out_button)
-        zoom_controls.addWidget(self.reset_view_button)
-        right_layout.addLayout(zoom_controls)
+        # zoom_controls = QHBoxLayout()
+        # self.zoom_in_button = QPushButton("Zoom In")
+        # self.zoom_out_button = QPushButton("Zoom Out")
+        # self.reset_view_button = QPushButton("Reset View")
+        # zoom_controls.addWidget(self.zoom_in_button)
+        # zoom_controls.addWidget(self.zoom_out_button)
+        # zoom_controls.addWidget(self.reset_view_button)
+        # right_layout.addLayout(zoom_controls)
 
 
 
@@ -180,6 +180,12 @@ class MainWindow(QMainWindow):
         save_action.setShortcut('Ctrl+S')
         save_action.triggered.connect(self.save_file)
         file_menu.addAction(save_action)
+        
+        # Save As action
+        save_as_action = QAction('Save As...', self)
+        save_as_action.setShortcut('Ctrl+Shift+S')
+        save_as_action.triggered.connect(self.save_file_as)
+        file_menu.addAction(save_as_action)
         
         file_menu.addSeparator()
         
@@ -440,9 +446,9 @@ class MainWindow(QMainWindow):
         self.apply_layout_button.clicked.connect(self.run_full_layout)
         
         # Zoom controls
-        self.zoom_in_button.clicked.connect(self.zoom_in)
-        self.zoom_out_button.clicked.connect(self.zoom_out)
-        self.reset_view_button.clicked.connect(self.reset_view)
+        # self.zoom_in_button.clicked.connect(self.zoom_in)
+        # self.zoom_out_button.clicked.connect(self.zoom_out)
+        # self.reset_view_button.clicked.connect(self.reset_view)
         
         # Animation timer
         self.animation_timer.timeout.connect(self.update_layout_step)
@@ -732,82 +738,197 @@ Main = (Process) | (Query)"""
         self.view.scale(factor, factor)
     # Add these methods to your MainWindow class
 
-def resize_panes(self, left_ratio=0.4):
-    """Resize the panes according to given ratio (left_ratio:1-left_ratio)"""
-    total_width = self.splitter.width()
-    left_width = int(total_width * left_ratio)
-    right_width = total_width - left_width
-    self.splitter.setSizes([left_width, right_width])
+    def resize_panes(self, left_ratio=0.4):
+        """Resize the panes according to given ratio (left_ratio:1-left_ratio)"""
+        total_width = self.splitter.width()
+        left_width = int(total_width * left_ratio)
+        right_width = total_width - left_width
+        self.splitter.setSizes([left_width, right_width])
 
-def add_resize_controls(self):
-    """Add buttons to control pane sizing"""
-    resize_layout = QHBoxLayout()
-    
-    self.resize_equal_button = QPushButton("Equal Split")
-    self.resize_left_button = QPushButton("More Editor")
-    self.resize_right_button = QPushButton("More Visualization")
-    
-    resize_layout.addWidget(self.resize_equal_button)
-    resize_layout.addWidget(self.resize_left_button)
-    resize_layout.addWidget(self.resize_right_button)
-    
-    # Add this layout to the main layout
-    main_layout = self.layout()
-    main_layout.addLayout(resize_layout)
-    
-    # Connect signals
-    self.resize_equal_button.clicked.connect(lambda: self.resize_panes(0.5))
-    self.resize_left_button.clicked.connect(lambda: self.resize_panes(0.7))
-    self.resize_right_button.clicked.connect(lambda: self.resize_panes(0.3))
+    def add_resize_controls(self):
+        """Add buttons to control pane sizing"""
+        resize_layout = QHBoxLayout()
+        
+        self.resize_equal_button = QPushButton("Equal Split")
+        self.resize_left_button = QPushButton("More Editor")
+        self.resize_right_button = QPushButton("More Visualization")
+        
+        resize_layout.addWidget(self.resize_equal_button)
+        resize_layout.addWidget(self.resize_left_button)
+        resize_layout.addWidget(self.resize_right_button)
+        
+        # Add this layout to the main layout
+        main_layout = self.layout()
+        main_layout.addLayout(resize_layout)
+        
+        # Connect signals
+        self.resize_equal_button.clicked.connect(lambda: self.resize_panes(0.5))
+        self.resize_left_button.clicked.connect(lambda: self.resize_panes(0.7))
+        self.resize_right_button.clicked.connect(lambda: self.resize_panes(0.3))
 
-# Add to the View menu
-def add_resize_menu_actions(self):
-    """Add resize actions to the View menu"""
-    view_menu = self.menuBar().addMenu('View')
-    
-    # Equal split action
-    equal_action = QAction('Equal Split', self)
-    equal_action.setShortcut('Ctrl+E')
-    equal_action.triggered.connect(lambda: self.resize_panes(0.5))
-    view_menu.addAction(equal_action)
-    
-    # More editor action
-    left_action = QAction('More Editor Space', self)
-    left_action.setShortcut('Ctrl+Left')
-    left_action.triggered.connect(lambda: self.resize_panes(0.7))
-    view_menu.addAction(left_action)
-    
-    # More visualization action
-    right_action = QAction('More Visualization Space', self)
-    right_action.setShortcut('Ctrl+Right')
-    right_action.triggered.connect(lambda: self.resize_panes(0.3))
-    view_menu.addAction(right_action)
+    # Add to the View menu
+    def add_resize_menu_actions(self):
+        """Add resize actions to the View menu"""
+        view_menu = self.menuBar().addMenu('View')
+        
+        # Equal split action
+        equal_action = QAction('Equal Split', self)
+        equal_action.setShortcut('Ctrl+E')
+        equal_action.triggered.connect(lambda: self.resize_panes(0.5))
+        view_menu.addAction(equal_action)
+        
+        # More editor action
+        left_action = QAction('More Editor Space', self)
+        left_action.setShortcut('Ctrl+Left')
+        left_action.triggered.connect(lambda: self.resize_panes(0.7))
+        view_menu.addAction(left_action)
+        
+        # More visualization action
+        right_action = QAction('More Visualization Space', self)
+        right_action.setShortcut('Ctrl+Right')
+        right_action.triggered.connect(lambda: self.resize_panes(0.3))
+        view_menu.addAction(right_action)
 
-# ResizeableMainWindow extension for automatic resizing on window resize
-def resizeEvent(self, event):
-    """Handle window resize event to maintain splitter proportions"""
-    super().resizeEvent(event)
-    
-    # Calculate and maintain the current proportion
-    if hasattr(self, '_splitter_ratio'):
-        self.resize_panes(self._splitter_ratio)
-    else:
-        # First time - store initial ratio
+    # ResizeableMainWindow extension for automatic resizing on window resize
+    def resizeEvent(self, event):
+        """Handle window resize event to maintain splitter proportions"""
+        super().resizeEvent(event)
+        
+        # Calculate and maintain the current proportion
+        if hasattr(self, '_splitter_ratio'):
+            self.resize_panes(self._splitter_ratio)
+        else:
+            # First time - store initial ratio
+            total_width = self.splitter.width()
+            if total_width > 0:
+                sizes = self.splitter.sizes()
+                if len(sizes) >= 2 and total_width > 0:
+                    self._splitter_ratio = sizes[0] / total_width
+
+    # Connect splitter moved signal in __init__
+    def connect_splitter_signals(self):
+        """Connect signals for splitter movements"""
+        self.splitter.splitterMoved.connect(self.splitter_moved)
+
+    def splitter_moved(self, pos, index):
+        """Handle splitter move to store the new ratio"""
         total_width = self.splitter.width()
         if total_width > 0:
             sizes = self.splitter.sizes()
-            if len(sizes) >= 2 and total_width > 0:
+            if len(sizes) >= 2:
                 self._splitter_ratio = sizes[0] / total_width
+#########################
+# Methods to add to the MainWindow class
 
-# Connect splitter moved signal in __init__
-def connect_splitter_signals(self):
-    """Connect signals for splitter movements"""
-    self.splitter.splitterMoved.connect(self.splitter_moved)
 
-def splitter_moved(self, pos, index):
-    """Handle splitter move to store the new ratio"""
-    total_width = self.splitter.width()
-    if total_width > 0:
-        sizes = self.splitter.sizes()
-        if len(sizes) >= 2:
-            self._splitter_ratio = sizes[0] / total_width
+    def save_file(self):
+        """Open dialog to save the current Petri net"""
+        # Ensure there's a Petri net to save
+        if not self.parser.places and not self.parser.transitions:
+            QMessageBox.warning(self, "Save Error", "No Petri net to save. Please visualize a valid process algebra expression first.")
+            return
+        
+        # Get default name from the first main process if available
+        default_name = ""
+        if hasattr(self.parser, 'main_processes') and self.parser.main_processes:
+            default_name = next(iter(self.parser.main_processes))
+        
+        # Show the save dialog
+        dialog = SaveDialog(self, default_name)
+        if dialog.exec_() == QDialog.Accepted:
+            name = dialog.get_name()
+            if name:
+                try:
+                    # Create a file name from the provided name
+                    file_name = name.replace(" ", "_").lower() + ".json"
+                    
+                    # Save the Petri net to a JSON file
+                    file_path = self.file_manager.save_petri_net(self.parser, file_name)
+                    
+                    QMessageBox.information(self, "Save Successful", 
+                                        f"Petri net saved as '{file_path}'.\nYou can load it using the Load option.")
+                except Exception as e:
+                    QMessageBox.critical(self, "Save Error", f"Error saving Petri net: {str(e)}")
+            else:
+                QMessageBox.warning(self, "Save Error", "Please enter a name for the Petri net.")
+
+    def save_file_as(self):
+        """Open dialog to save the current Petri net with a new name"""
+        # Ensure there's a Petri net to save
+        if not self.parser.places and not self.parser.transitions:
+            QMessageBox.warning(self, "Save Error", "No Petri net to save. Please visualize a valid process algebra expression first.")
+            return
+        
+        # Open save file dialog
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Save Petri Net As", str(self.file_manager.nets_dir),
+            "JSON Files (*.json);;All Files (*)"
+        )
+        
+        if file_path:
+            try:
+                # Extract filename from path
+                import os
+                filename = os.path.basename(file_path)
+                
+                # Create the process algebra source code
+                source_code = ""
+                for process_name, definition in self.parser.process_definitions.items():
+                    source_code += f"{process_name} = {definition}\n"
+                
+                # Save the Petri net to a JSON file
+                saved_path = self.file_manager.save_petri_net(self.parser, filename)
+                
+                QMessageBox.information(self, "Save Successful", 
+                                    f"Petri net saved as '{saved_path}'.")
+            except Exception as e:
+                QMessageBox.critical(self, "Save Error", f"Error saving Petri net: {str(e)}")    
+#########################
+     # SaveDialog class - add this at the top level before MainWindow class
+class SaveDialog(QDialog):
+    """Dialog for saving Petri nets with a name"""
+    
+    def __init__(self, parent=None, default_name=""):
+        super().__init__(parent)
+        self.setWindowTitle("Save Petri Net")
+        self.resize(300, 150)
+        
+        layout = QVBoxLayout(self)
+        
+        # Add name label and text field
+        layout.addWidget(QLabel("Enter name for Petri net:"))
+        self.name_edit = QTextEdit()
+        self.name_edit.setPlaceholderText("Enter name...")
+        if default_name:
+            self.name_edit.setText(default_name)
+        self.name_edit.setMaximumHeight(50)
+        layout.addWidget(self.name_edit)
+        
+        # Add description field
+        layout.addWidget(QLabel("Description (optional):"))
+        self.description_edit = QTextEdit()
+        self.description_edit.setPlaceholderText("Enter a description...")
+        self.description_edit.setMaximumHeight(80)
+        layout.addWidget(self.description_edit)
+        
+        # Add buttons
+        button_layout = QHBoxLayout()
+        self.save_button = QPushButton("Save")
+        self.cancel_button = QPushButton("Cancel")
+        button_layout.addWidget(self.save_button)
+        button_layout.addWidget(self.cancel_button)
+        layout.addLayout(button_layout)
+        
+        # Connect signals
+        self.save_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+    
+    def get_name(self):
+        """Get the entered name"""
+        return self.name_edit.toPlainText().strip()
+    
+    def get_description(self):
+        """Get the entered description"""
+        return self.description_edit.toPlainText().strip()
+
+   
