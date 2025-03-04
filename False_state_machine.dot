@@ -1,0 +1,34 @@
+digraph state_machine {
+    rankdir=LR;
+    node [shape = circle];
+    0 [label="S0\nPing, Q", style=filled, fillcolor=lightblue];
+    1 [label="S1\n, Ping"];
+    2 [label="S2\nP, Ping"];
+    3 [label="S3\n, Q"];
+    4 [label="S4\n, "];
+    5 [label="S5\n, Ping"];
+    6 [label="S6\n, P"];
+    7 [label="S7\nPing, STOP"];
+    8 [label="S8\n, "];
+    9 [label="S9\n, STOP"];
+    0 -> 1 [label="c"];
+    0 -> 2 [label="e"];
+    0 -> 3 [label="help"];
+    1 -> 0 [label="d"];
+    1 -> 4 [label="help"];
+    2 -> 5 [label="a"];
+    2 -> 6 [label="help"];
+    3 -> 4 [label="c"];
+    3 -> 6 [label="e"];
+    3 -> 0 [label="go"];
+    4 -> 3 [label="d"];
+    4 -> 1 [label="go"];
+    5 -> 7 [label="b"];
+    5 -> 8 [label="help"];
+    6 -> 8 [label="a"];
+    6 -> 2 [label="go"];
+    7 -> 9 [label="help"];
+    8 -> 9 [label="b"];
+    8 -> 5 [label="go"];
+    9 -> 7 [label="go"];
+}

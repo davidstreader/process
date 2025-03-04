@@ -100,7 +100,7 @@ class ProcessAlgebraParser:
 
             # Iterate over key-value pairs
             for key, value in self.main_processes.items():
-                      print(f"{key}: {value}")
+                     # print(f"{key}: {value}")
                       self.store_window_petri_net(key, value)
             #Parsing build places transitions and arcs for all the Petri nets
             #store_window_petri_net stores the nets in petri_nets dictionary
@@ -109,6 +109,7 @@ class ProcessAlgebraParser:
             # self.places = []
             # self.transitions = []
             # self.arcs = []
+            self.show_petri_nets(self.petri_nets)
             return True
         except Exception as e:
             import traceback
@@ -217,7 +218,7 @@ class ProcessAlgebraParser:
     def _build_all_referenced_processes(self):
         """Build all referenced processes to ensure completeness"""
         # Make a list of all processes to ensure they're fully parsed
-        print(f" I think _build_all_referenced_processes is not needed")
+        #print(f" I think _build_all_referenced_processes is not needed")
         all_processes = set(self.process_definitions.keys())
         for process_name in all_processes:
             if process_name not in self.parsed_processes and process_name in self.process_places:
@@ -252,7 +253,7 @@ class ProcessAlgebraParser:
             if ref_process not in self.parsed_processes and ref_process in self.process_places:
                 # Use a new index based on current parsed processes
                 ref_index = len(self.parsed_processes)
-                print(f"Building referenced process {ref_process} at index {ref_index}")
+                #print(f"Building referenced process {ref_process} at index {ref_index}")
                 self.build_petri_net(ref_process, ref_index)
 
     def parse_expression(self, expr, place_id, process_name, base_y):
@@ -346,7 +347,7 @@ class ProcessAlgebraParser:
 
             if len(parts) == i + 1: #last event 
                     transition_id = self.create_action_transition(part, current_place_id, p_name, y_pos, x_offset)                               
-                    print(f"Created arc from {current_place_id} to {transition_id}")
+                    #(f"Created arc from {current_place_id} to {transition_id}")
                     #adds arc from current place to transition  
             if len(parts) > i + 1:
                     transition_id = self.create_action_transition(part, current_place_id, p_name, y_pos, x_offset)

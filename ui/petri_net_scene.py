@@ -25,14 +25,152 @@ class PetriNetScene(QGraphicsScene):
         self.parser = None     # Store reference to parser for arc redrawing
     
     # In ui/petri_net_scene.py, update the clear_and_draw_petri_net method in DraggableScene class:
+###############
+        # Add this method to the PetriNetScene class in ui/petri_net_scene.py
 
+    def clear_and_draw_petri_net_from_data(self, net_data):
+        """Draw a Petri net from the provided net data dictionary"""
+        # Clear tracking dictionaries
+        self.node_related_items = {}
+        
+        # Debug: Print data to verify we're receiving it correctly
+        #print(f"Drawing Petri net from data with {len(net_data['places'])} places, {len(net_data['transitions'])} transitions")
+        
+        # Initialize node_related_items for all places and transitions BEFORE drawing
+        for place in net_data['places']:
+            place_id = place['id']
+            self.node_related_items[f"p{place_id}"] = {
+                "labels": [],
+                "tokens": []
+            }
+        
+        for transition in net_data['transitions']:
+            transition_id = transition['id']
+            self.node_related_items[f"t{transition_id}"] = {
+                "labels": []
+            }
+        
+        # Store a reference to the data
+        self.current_net_data = net_data
+        
+        # Clear the scene before drawing
+        self.clear()
+        self.place_items = {}
+        self.transition_items = {}
+        self.arc_items = {}
+        
+        # Draw places (circles)
+        for place in net_data['places']:
+            self.draw_place(place)
+        
+        # Draw transitions (rectangles)
+        for transition in net_data['transitions']:
+            self.draw_transition(transition)
+        
+        # Draw arcs (arrows)
+        self.draw_arcs_from_data(net_data)
+        
+        # Add bounding box with light shading
+        self.add_bounding_box()
+        
+        # Set scene rect to fit all items with padding
+        self.setSceneRect(self.itemsBoundingRect().adjusted(-50, -50, 50, 50))
+
+    def draw_arcs_from_data(self, net_data):
+        """Draw arcs between places and transitions using the provided net data"""
+        # Clear any existing arc items
+        for arc_id in self.arc_items:
+            for item in self.arc_items[arc_id]:
+                if item in self.items():
+                    self.removeItem(item)
+        self.arc_items = {}
+        
+        # Debug information
+        #print(f"Drawing {len(net_data['arcs'])} arcs from net data")
+        
+        # Draw each arc
+        for i, arc in enumerate(net_data['arcs']):
+            source_id = arc['source_id']
+            target_id = arc['target_id']
+            
+            # Initialize coordinates
+            start_x, start_y = 0, 0
+            end_x, end_y = 0, 0
+            
+            # Get start and end coordinates
+            if arc['is_place_to_transition']:
+                # From place to transition
+                for place in net_data['places']:
+                    if place['id'] == source_id:
+                        start_x, start_y = place['x'], place['y']
+                        break
+                
+                for transition in net_data['transitions']:
+                    if transition['id'] == target_id:
+                        end_x, end_y = transition['x'], transition['y']
+                        break
+            else:
+                # From transition to place
+                for transition in net_data['transitions']:
+                    if transition['id'] == source_id:
+                        start_x, start_y = transition['x'], transition['y']
+                        break
+                
+                for place in net_data['places']:
+                    if place['id'] == target_id:
+                        end_x, end_y = place['x'], place['y']
+                        break
+            
+            # Skip if coordinates not found
+            if start_x == 0 and start_y == 0:
+                print(f"  Skipping arc {i}: source coordinates not found")
+                continue
+            if end_x == 0 and end_y == 0:
+                print(f"  Skipping arc {i}: target coordinates not found")
+                continue
+            
+            # Calculate direction vector
+            dx = end_x - start_x
+            dy = end_y - start_y
+            
+            # Normalize vector
+            length = math.sqrt(dx**2 + dy**2)
+            if length > 0:
+                dx /= length
+                dy /= length
+            
+            # Adjust start and end points to be on the boundaries of nodes
+            if arc['is_place_to_transition']:
+                start_x += dx * self.place_radius
+                start_y += dy * self.place_radius
+                end_x -= dx * self.transition_width / 2
+                end_y -= dy * self.transition_height / 2
+            else:
+                start_x += dx * self.transition_width / 2
+                start_y += dy * self.transition_height / 2
+                end_x -= dx * self.place_radius
+                end_y -= dy * self.place_radius
+            
+            # Draw the line
+            arc_id = f"{source_id}_{target_id}"
+            self.arc_items[arc_id] = []
+            
+            line = QGraphicsLineItem(start_x, start_y, end_x, end_y)
+            line.setPen(QPen(Qt.black, 1.5))
+            self.addItem(line)
+            self.arc_items[arc_id].append(line)
+            
+            # Draw the arrow head
+            arrow_items = self.draw_arrow_head(end_x, end_y, dx, dy)
+            self.arc_items[arc_id].extend(arrow_items)
+###############
     def clear_and_draw_petri_net(self, parser):
         """Override to track related items"""
         # Clear tracking dictionaries
         self.node_related_items = {}
         
         # Debug: Print parser data to verify we're receiving it correctly
-        print(f"Drawing Petri net with {len(parser.places)} places, {len(parser.transitions)} transitions")
+        #print(f"Drawing Petri net with {len(parser.places)} places, {len(parser.transitions)} transitions")
         
         # Initialize node_related_items for all places and transitions BEFORE drawing
         for place in parser.places:
@@ -162,14 +300,14 @@ class PetriNetScene(QGraphicsScene):
         self.arc_items = {}
         
         # Debug information
-        print(f"Drawing {len(parser.arcs)} arcs")
+        #print(f"Drawing {len(parser.arcs)} arcs")
         
         # Draw each arc
         for i, arc in enumerate(parser.arcs):
             source_id = arc['source_id']
             target_id = arc['target_id']
             
-            print(f"Arc {i}: source={source_id}, target={target_id}, is_place_to_transition={arc['is_place_to_transition']}")
+            #print(f"Arc {i}: source={source_id}, target={target_id}, is_place_to_transition={arc['is_place_to_transition']}")
             
             # Initialize coordinates
             start_x, start_y = 0, 0
@@ -185,14 +323,14 @@ class PetriNetScene(QGraphicsScene):
                     if place['id'] == source_id:
                         start_x, start_y = place['x'], place['y']
                         place_found = True
-                        print(f"  Found source place: {place['name']} at ({start_x}, {start_y})")
+                        #print(f"  Found source place: {place['name']} at ({start_x}, {start_y})")
                         break
                 
                 for transition in parser.transitions:
                     if transition['id'] == target_id:
                         end_x, end_y = transition['x'], transition['y']
                         transition_found = True
-                        print(f"  Found target transition: {transition['name']} at ({end_x}, {end_y})")
+                        #print(f"  Found target transition: {transition['name']} at ({end_x}, {end_y})")
                         break
                         
                 if not place_found:
@@ -209,14 +347,14 @@ class PetriNetScene(QGraphicsScene):
                     if transition['id'] == source_id:
                         start_x, start_y = transition['x'], transition['y']
                         transition_found = True
-                        print(f"  Found source transition: {transition['name']} at ({start_x}, {start_y})")
+                        #print(f"  Found source transition: {transition['name']} at ({start_x}, {start_y})")
                         break
                 
                 for place in parser.places:
                     if place['id'] == target_id:
                         end_x, end_y = place['x'], place['y']
                         place_found = True
-                        print(f"  Found target place: {place['name']} at ({end_x}, {end_y})")
+                        #print(f"  Found target place: {place['name']} at ({end_x}, {end_y})")
                         break
                         
                 if not transition_found:
@@ -407,6 +545,146 @@ class DraggableScene(PetriNetScene):
         # Track related items (labels, tokens) for each node
         self.node_related_items = {}  # {node_id: {type: [items]}}
     
+    # Add this method to the PetriNetScene class in ui/petri_net_scene.py
+
+    def clear_and_draw_petri_net_from_data(self, net_data):
+        """Draw a Petri net from the provided net data dictionary"""
+        # Clear tracking dictionaries
+        self.node_related_items = {}
+        
+        # Debug: Print data to verify we're receiving it correctly
+        #print(f"Drawing Petri net from data with {len(net_data['places'])} places, {len(net_data['transitions'])} transitions")
+        
+        # Initialize node_related_items for all places and transitions BEFORE drawing
+        for place in net_data['places']:
+            place_id = place['id']
+            self.node_related_items[f"p{place_id}"] = {
+                "labels": [],
+                "tokens": []
+            }
+        
+        for transition in net_data['transitions']:
+            transition_id = transition['id']
+            self.node_related_items[f"t{transition_id}"] = {
+                "labels": []
+            }
+        
+        # Store a reference to the data
+        self.current_net_data = net_data
+        
+        # Clear the scene before drawing
+        self.clear()
+        self.place_items = {}
+        self.transition_items = {}
+        self.arc_items = {}
+        
+        # Draw places (circles)
+        for place in net_data['places']:
+            self.draw_place(place)
+        
+        # Draw transitions (rectangles)
+        for transition in net_data['transitions']:
+            self.draw_transition(transition)
+        
+        # Draw arcs (arrows)
+        self.draw_arcs_from_data(net_data)
+        
+        # Add bounding box with light shading
+        self.add_bounding_box()
+        
+        # Set scene rect to fit all items with padding
+        self.setSceneRect(self.itemsBoundingRect().adjusted(-50, -50, 50, 50))
+
+    def draw_arcs_from_data(self, net_data):
+        """Draw arcs between places and transitions using the provided net data"""
+        # Clear any existing arc items
+        for arc_id in self.arc_items:
+            for item in self.arc_items[arc_id]:
+                if item in self.items():
+                    self.removeItem(item)
+        self.arc_items = {}
+        
+        # Debug information
+        #print(f"Drawing {len(net_data['arcs'])} arcs from net data")
+        
+        # Draw each arc
+        for i, arc in enumerate(net_data['arcs']):
+            source_id = arc['source_id']
+            target_id = arc['target_id']
+            
+            # Initialize coordinates
+            start_x, start_y = 0, 0
+            end_x, end_y = 0, 0
+            
+            # Get start and end coordinates
+            if arc['is_place_to_transition']:
+                # From place to transition
+                for place in net_data['places']:
+                    if place['id'] == source_id:
+                        start_x, start_y = place['x'], place['y']
+                        break
+                
+                for transition in net_data['transitions']:
+                    if transition['id'] == target_id:
+                        end_x, end_y = transition['x'], transition['y']
+                        break
+            else:
+                # From transition to place
+                for transition in net_data['transitions']:
+                    if transition['id'] == source_id:
+                        start_x, start_y = transition['x'], transition['y']
+                        break
+                
+                for place in net_data['places']:
+                    if place['id'] == target_id:
+                        end_x, end_y = place['x'], place['y']
+                        break
+            
+            # Skip if coordinates not found
+            if start_x == 0 and start_y == 0:
+                print(f"  Skipping arc {i}: source coordinates not found")
+                continue
+            if end_x == 0 and end_y == 0:
+                print(f"  Skipping arc {i}: target coordinates not found")
+                continue
+            
+            # Calculate direction vector
+            dx = end_x - start_x
+            dy = end_y - start_y
+            
+            # Normalize vector
+            length = math.sqrt(dx**2 + dy**2)
+            if length > 0:
+                dx /= length
+                dy /= length
+            
+            # Adjust start and end points to be on the boundaries of nodes
+            if arc['is_place_to_transition']:
+                start_x += dx * self.place_radius
+                start_y += dy * self.place_radius
+                end_x -= dx * self.transition_width / 2
+                end_y -= dy * self.transition_height / 2
+            else:
+                start_x += dx * self.transition_width / 2
+                start_y += dy * self.transition_height / 2
+                end_x -= dx * self.place_radius
+                end_y -= dy * self.place_radius
+            
+            # Draw the line
+            arc_id = f"{source_id}_{target_id}"
+            self.arc_items[arc_id] = []
+            
+            line = QGraphicsLineItem(start_x, start_y, end_x, end_y)
+            line.setPen(QPen(Qt.black, 1.5))
+            self.addItem(line)
+            self.arc_items[arc_id].append(line)
+            
+            # Draw the arrow head
+            arrow_items = self.draw_arrow_head(end_x, end_y, dx, dy)
+            self.arc_items[arc_id].extend(arrow_items)
+
+
+
     def clear_and_draw_petri_net(self, parser):
         """Override to track related items"""
         # Clear tracking dictionaries

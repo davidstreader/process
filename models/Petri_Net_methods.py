@@ -1,5 +1,5 @@
 
-from parser import ProcessAlgebraParser
+
 
 def petri_to_state_machine(parser, net_id=None):
     """
