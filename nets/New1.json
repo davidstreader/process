@@ -1,0 +1,226 @@
+{
+  "places": [
+    {
+      "id": 0,
+      "name": "P",
+      "tokens": 0,
+      "x": 348.4994412179111,
+      "y": 447.68931709693453,
+      "is_process": true,
+      "process": "Q",
+      "is_main": false
+    },
+    {
+      "id": 1,
+      "name": "Q",
+      "tokens": 1,
+      "x": 167.47850083062474,
+      "y": 355.7495622324219,
+      "is_process": true,
+      "process": "Q",
+      "is_main": true
+    },
+    {
+      "id": 2,
+      "name": "Ping",
+      "tokens": 1,
+      "x": 402.4587272178017,
+      "y": 110.46357261747815,
+      "is_process": true,
+      "process": "Ping",
+      "is_main": true
+    },
+    {
+      "id": 4,
+      "name": "",
+      "tokens": 0,
+      "x": 539.6408764174954,
+      "y": 443.4628780147241,
+      "is_terminal": false,
+      "process": "Q"
+    },
+    {
+      "id": 5,
+      "name": "STOP",
+      "tokens": 0,
+      "x": 684.0745311481785,
+      "y": 351.2377510114495,
+      "is_terminal": true,
+      "process": "Q"
+    },
+    {
+      "id": 8,
+      "name": "",
+      "tokens": 0,
+      "x": 82.0253337824772,
+      "y": 244.39654428333165,
+      "is_terminal": false,
+      "process": "Q"
+    },
+    {
+      "id": 12,
+      "name": "",
+      "tokens": 0,
+      "x": 290.38462749419256,
+      "y": 50,
+      "is_terminal": false,
+      "process": "Ping"
+    }
+  ],
+  "transitions": [
+    {
+      "id": 3,
+      "name": "a",
+      "x": 445.5038076477352,
+      "y": 456.15940539160766,
+      "process": "Q"
+    },
+    {
+      "id": 6,
+      "name": "b",
+      "x": 622.5427189978444,
+      "y": 405.37201705335553,
+      "process": "Q"
+    },
+    {
+      "id": 7,
+      "name": "c",
+      "x": 78.44946723952397,
+      "y": 325.8537820207237,
+      "process": "Q"
+    },
+    {
+      "id": 9,
+      "name": "d",
+      "x": 158.3344604099209,
+      "y": 268.49181116997465,
+      "process": "Q"
+    },
+    {
+      "id": 10,
+      "name": "e",
+      "x": 253.97001487524463,
+      "y": 416.38263127071906,
+      "process": "Q"
+    },
+    {
+      "id": 11,
+      "name": "help",
+      "x": 319.3424570164074,
+      "y": 119.47927083259026,
+      "process": "Ping"
+    },
+    {
+      "id": 13,
+      "name": "go",
+      "x": 370.6034753165445,
+      "y": 50,
+      "process": "Ping"
+    }
+  ],
+  "arcs": [
+    {
+      "source_id": 0,
+      "target_id": 3,
+      "is_place_to_transition": true,
+      "process": "Q"
+    },
+    {
+      "source_id": 3,
+      "target_id": 4,
+      "is_place_to_transition": false,
+      "process": "Q"
+    },
+    {
+      "source_id": 4,
+      "target_id": 6,
+      "is_place_to_transition": true,
+      "process": "Q"
+    },
+    {
+      "source_id": 6,
+      "target_id": 5,
+      "is_place_to_transition": false,
+      "process": "Q"
+    },
+    {
+      "source_id": 1,
+      "target_id": 7,
+      "is_place_to_transition": true,
+      "process": "Q"
+    },
+    {
+      "source_id": 7,
+      "target_id": 8,
+      "is_place_to_transition": false,
+      "process": "Q"
+    },
+    {
+      "source_id": 8,
+      "target_id": 9,
+      "is_place_to_transition": true,
+      "process": "Q"
+    },
+    {
+      "source_id": 9,
+      "target_id": 1,
+      "is_place_to_transition": false,
+      "process": "Q"
+    },
+    {
+      "source_id": 1,
+      "target_id": 10,
+      "is_place_to_transition": true,
+      "process": "Q"
+    },
+    {
+      "source_id": 10,
+      "target_id": 0,
+      "is_place_to_transition": false,
+      "process": "Q"
+    },
+    {
+      "source_id": 2,
+      "target_id": 11,
+      "is_place_to_transition": true,
+      "process": "Ping"
+    },
+    {
+      "source_id": 11,
+      "target_id": 12,
+      "is_place_to_transition": false,
+      "process": "Ping"
+    },
+    {
+      "source_id": 12,
+      "target_id": 13,
+      "is_place_to_transition": true,
+      "process": "Ping"
+    },
+    {
+      "source_id": 13,
+      "target_id": 2,
+      "is_place_to_transition": false,
+      "process": "Ping"
+    }
+  ],
+  "parse_tree": {
+    "process_definitions": {
+      "P": "a.b.STOP",
+      "Q": "c.d.Q + e.P",
+      "Ping": "help.go.Ping"
+    },
+    "expanded_definitions": {
+      "P": "a.b.STOP",
+      "Q": "c.d.Q + e.(a.b.STOP)",
+      "Ping": "help.go.Ping"
+    },
+    "process_places": {
+      "P": 0,
+      "Q": 1,
+      "Ping": 2
+    },
+    "current_id": 14
+  },
+  "source_code": "P = a.b.STOP\nQ = c.d.Q + e.P\nPing = help.go.Ping"
+}

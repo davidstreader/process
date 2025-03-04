@@ -543,40 +543,16 @@ Main = (Process) | (Query)"""
             self.load_petri_net_from_file(last_net)
     
     def visualize_petri_net(self):
-        """Parse the current text and visualize the Petri net"""
-        # Get the current text
-        text = self.text_editor.toPlainText()
+        """ visualize the previously parsed Petri nets"""
         
-        if not text.strip():
-            QMessageBox.information(self, "Empty Input", "Please enter a process algebra expression first.")
-            return
-        
-        # Parse the text
-        success = self.parser.parse(text)
-        
-        if success:
-            # Store the parsed text in the petri_net dictionary
-            if hasattr(self.parser, 'store_current_petri_net'):
-                # Use the first process name as the net name
-                net_name = next(iter(self.parser.main_processes)) if self.parser.main_processes else "Unnamed Net"
-                self.parser.store_current_petri_net(net_name, text)
-            
-            # Update the visualization
-            self.update_visualization()
+        self.update_visualization()
             
             # DEBUG: Print current parser state
-            print(f"Parser after visualization: {len(self.parser.places)} places, {len(self.parser.transitions)} transitions")
+        print(f"Parser after visualization: {len(self.parser.petri_nets)} petrinets")
             
             # Update the main processes menu (make sure this method exists)
-            self.update_main_processes_menu()
-        else:
-            # Show parsing errors
-            errors = self.parser.get_parsing_errors()
-            error_message = "Unable to parse the process algebra expression:\n\n"
-            for error in errors:
-                error_message += f"• {error}\n"
-            
-            QMessageBox.warning(self, "Parsing Error", error_message)
+        self.update_main_processes_menu()
+        
             
     def update_visualization(self):
         """Update the Petri net visualization with current parser data"""

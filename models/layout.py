@@ -16,6 +16,7 @@ class ForceDirectedLayout:
         self.temperature = 1.0
         self.cooling_factor = 0.95
         self.timestep = 0.5
+        self.petri_net = {}
         
         # Node velocities
         self.velocities = {}
@@ -55,13 +56,29 @@ class ForceDirectedLayout:
             self.timestep = params['timestep']
             print(f"Updated timestep to {self.timestep}")
     
+    def show_petri_net(self, petri_net):
+         print(f"Petri net: {petri_net}")
+         for key, value in petri_net.items():
+                 print(f"  {key}: {value}")
+                 
     def initialize_layout(self, parser):
+        """Initialize all petrin nets in Petri_nets"""
+        parser.show_petri_nets(parser.petri_nets)
+        for net_id, data in parser.petri_nets.items():
+            print(f"Net ID: {net_id}")
+            self.initialize_single_layout(data)
+            for key, value in data.items():
+                 print(f"  {key}: {value}")
+
+
+    def initialize_single_layout(self, petri):
         """Initialize the layout with random positions if needed and reset velocities"""
         # Initialize velocities for all nodes
         self.velocities = {}
-        
+        print(f"Initializing layout for {petri['name']}")
+        self.show_petri_net(petri)
         # Set random positions for places and transitions if not set
-        for place in parser.places:
+        for place in petri['places']:
             if 'x' not in place or 'y' not in place:
                 place['x'] = random.uniform(100, 700)
                 place['y'] = random.uniform(100, 500)
@@ -69,7 +86,7 @@ class ForceDirectedLayout:
             # Initialize velocity for this node
             self.velocities[f"p{place['id']}"] = {'x': 0, 'y': 0}
         
-        for transition in parser.transitions:
+        for transition in petri['transitions']:
             if 'x' not in transition or 'y' not in transition:
                 transition['x'] = random.uniform(100, 700)
                 transition['y'] = random.uniform(100, 500)
@@ -100,23 +117,29 @@ class ForceDirectedLayout:
                 break
     
     def update_single_iteration(self, parser):
+        for net_id, data in parser.petri_nets.items():
+            print(f"Net ID: {net_id}")
+            forces = self._calculate_forces(data)
+            self._update_positions(data, forces, self.temperature)
+
         """Apply a single iteration of the layout algorithm"""
+
         forces = self._calculate_forces(parser)
         self._update_positions(parser, forces, self.temperature)
     
-    def _calculate_forces(self, parser):
+    def _calculate_forces(self, data):
         """Calculate forces for each node based on simplified model"""
         forces = {}
         
         # Initialize forces for all nodes
-        for place in parser.places:
+        for place in data['places']:
             forces[f"p{place['id']}"] = {'x': 0, 'y': 0}
         
-        for transition in parser.transitions:
+        for transition in data['transitions']:
             forces[f"t{transition['id']}"] = {'x': 0, 'y': 0}
         
         # Calculate repulsive forces between all nodes
-        all_nodes = [(f"p{p['id']}", p) for p in parser.places] + [(f"t{t['id']}", t) for t in parser.transitions]
+        all_nodes = [(f"p{p['id']}", p) for p in data['places']] + [(f"t{t['id']}", t) for t in data['transitions']]
         
         for i, (id1, node1) in enumerate(all_nodes):
             for j, (id2, node2) in enumerate(all_nodes[i+1:], i+1):
@@ -145,7 +168,7 @@ class ForceDirectedLayout:
                     forces[id2]['y'] -= dy * force
         
         # Calculate attractive forces along the arcs
-        for arc in parser.arcs:
+        for arc in data.arcs:
             source_id = arc['source_id']
             target_id = arc['target_id']
             
@@ -156,27 +179,27 @@ class ForceDirectedLayout:
             
             # Find source and target nodes
             if arc['is_place_to_transition']:
-                # From place to transition
-                for place in parser.places:
+                #a tFarom place to transition
+                for place in data['places']:
                     if place['id'] == source_id:
                         source = place
                         source_type = "p"
                         break
                 
-                for transition in parser.transitions:
+                for transition in data['transitions']:
                     if transition['id'] == target_id:
                         target = transition
                         target_type = "t"
                         break
             else:
                 # From transition to place
-                for transition in parser.transitions:
+                for transition in data['transitions']:
                     if transition['id'] == source_id:
                         source = transition
                         source_type = "t"
                         break
                 
-                for place in parser.places:
+                for place in data['places']:
                     if place['id'] == target_id:
                         target = place
                         target_type = "p"
@@ -208,10 +231,10 @@ class ForceDirectedLayout:
         
         return forces
     
-    def _update_positions(self, parser, forces, temperature):
+    def _update_positions(self, data, forces, temperature):
         """Update node positions based on calculated forces"""
         # Update places
-        for place in parser.places:
+        for place in data['places']:
             if not place.get('fixed', False):
                 node_id = f"p{place['id']}"
                 
@@ -233,7 +256,7 @@ class ForceDirectedLayout:
                     place['y'] = max(50, min(place['y'], 550))
         
         # Update transitions
-        for transition in parser.transitions:
+        for transition in data['transitions']:
             if not transition.get('fixed', False):
                 node_id = f"t{transition['id']}"
                 

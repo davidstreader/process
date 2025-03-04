@@ -6,7 +6,7 @@ class ProcessAlgebraParser:
     def __init__(self):
         self.places = []
         self.transitions = []
-        self.arcs = []
+        self.arcs = [] #theplaces transitions and arcs are for all the Petri nets built from the process algebra expressions
         self.current_id = 0
         self.process_definitions = {}
         self.process_places = {}
@@ -14,7 +14,7 @@ class ProcessAlgebraParser:
         self.parsed_processes = set()
         self.parsing_errors = []
         self.main_processes = {}
-        self.petri_nets = {}  # Dictionary to store petri nets with their data
+        self.petri_nets = {}  # Dictionary to individual store petri nets with their data
         self.current_net = None  # Track the current net being viewed
         self.ref_process = {}
     
@@ -102,11 +102,13 @@ class ProcessAlgebraParser:
             for key, value in self.main_processes.items():
                       print(f"{key}: {value}")
                       self.store_window_petri_net(key, value)
-            #net_name = next(iter(self.main_processes)) if self.main_processes else "Unnamed Net"
-            #self.store_window_petri_net(net_name, text)
-            #print(f"petri_nets: {self.petri_nets}")
-            #self.show_petri_nets(self.petri_nets)
+            #Parsing build places transitions and arcs for all the Petri nets
+            #store_window_petri_net stores the nets in petri_nets dictionary
             print(f"REF_process: {self.ref_process}")
+            # print(f"delet the collection of transition places and arcs. refactor program to use the stored petri nets")
+            # self.places = []
+            # self.transitions = []
+            # self.arcs = []
             return True
         except Exception as e:
             import traceback
@@ -118,7 +120,7 @@ class ProcessAlgebraParser:
     # ##############    
     
     def store_window_petri_net(self, name, source_text):
-        """Store the current Petri net data with its name, filtered by process name"""
+        """Store a single  Petri with its name, filtered by process name"""
         self.petri_nets = {}
         print(f"Storing current Petri net with name {name}")
         net_id = name.lower().replace(" ", "_")
@@ -176,7 +178,7 @@ class ProcessAlgebraParser:
             'last_id': self.current_id
         }
         print(f"Stored Petri net with ID {name}")
-        self.show_petri_nets(self.petri_nets)
+        #self.show_petri_nets(self.petri_nets)
        
         
         return net_id
